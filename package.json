@@ -1,0 +1,12 @@
+{
+  "name": "restaurant-os",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm -r test:e2e",
+    "lint": "pnpm -r lint"
+  }
+}

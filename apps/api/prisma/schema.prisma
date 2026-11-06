@@ -1,0 +1,1702 @@
+// RestaurantOS – PostgreSQL schema
+// Conventions:
+//  * snake_case tables and columns (@@map / @map), UUID primary keys.
+//  * Money:    Decimal(14,2). Quantities: Decimal(14,3). Rates: Decimal(6,3). Costs: Decimal(14,4).
+//  * Every restaurant-owned row carries organization_id and, where it belongs to an outlet, branch_id.
+//  * Check constraints, partial unique indexes and integrity triggers that Prisma cannot express
+//    live in the raw SQL part of the migrations (see prisma/migrations/*/migration.sql).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  DELIVERY
+}
+
+enum OrderStatus {
+  NEW
+  CONFIRMED
+  PREPARING
+  READY
+  SERVED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  PICKED_UP
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderItemStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum KitchenStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  FINALIZED
+  CANCELLED
+}
+
+enum SupplyType {
+  INTRA_STATE
+  INTER_STATE
+}
+
+enum TaxPricingMode {
+  INCLUSIVE
+  EXCLUSIVE
+}
+
+enum RoundingMode {
+  NEAREST_RUPEE
+  NEAREST_PAISA
+}
+
+enum StockDeductionPolicy {
+  ON_ORDER_CONFIRM
+  ON_ORDER_COMPLETE
+  NONE
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  BILL_PENDING
+  OUT_OF_SERVICE
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  WALLET
+  BANK_TRANSFER
+  OTHER
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  VOIDED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum DiscountScope {
+  ORDER
+  ITEM
+}
+
+enum UnitDimension {
+  MASS
+  VOLUME
+  COUNT
+}
+
+enum StockMovementType {
+  OPENING
+  PURCHASE_RECEIPT
+  SALE_CONSUMPTION
+  SALE_REVERSAL
+  WASTAGE
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum SupplierInvoiceStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum CashSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum CashMovementType {
+  OPENING_FLOAT
+  CASH_SALE
+  CASH_REFUND
+  CASH_IN
+  CASH_OUT
+  EXPENSE
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  HALF_DAY
+  LEAVE
+}
+
+enum SequenceType {
+  ORDER
+  KOT
+  INVOICE
+  CREDIT_NOTE
+  PURCHASE_ORDER
+  GOODS_RECEIPT
+}
+
+enum IdempotencyStatus {
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+// ───────────────────────────── Organization ─────────────────────────────
+
+model Organization {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  legalName String?   @map("legal_name")
+  gstin     String?   @db.VarChar(15)
+  pan       String?   @db.VarChar(10)
+  stateCode String?   @map("state_code") @db.VarChar(2)
+  address   String?
+  phone     String?
+  email     String?
+  timezone  String    @default("Asia/Kolkata")
+  currency  String    @default("INR") @db.VarChar(3)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  branches Branch[]
+  users    User[]
+  roles    Role[]
+
+  categorys        Category[]        @relation("Category_organization")
+  taxRates         TaxRate[]         @relation("TaxRate_organization")
+  products         Product[]         @relation("Product_organization")
+  modifierGroups   ModifierGroup[]   @relation("ModifierGroup_organization")
+  ingredients      Ingredient[]      @relation("Ingredient_organization")
+  recipes          Recipe[]          @relation("Recipe_organization")
+  suppliers        Supplier[]        @relation("Supplier_organization")
+  expenseCategorys ExpenseCategory[] @relation("ExpenseCategory_organization")
+  employees        Employee[]        @relation("Employee_organization")
+  idempotencyKeys  IdempotencyKey[]  @relation("IdempotencyKey_organization")
+  sessions         Session[]         @relation("Session_organization")
+
+  @@map("organizations")
+}
+
+model Branch {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  code           String    @db.VarChar(20)
+  name           String
+  gstin          String?   @db.VarChar(15)
+  stateCode      String    @map("state_code") @db.VarChar(2)
+  address        String?
+  city           String?
+  pincode        String?   @db.VarChar(6)
+  phone          String?
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  settings     BranchSettings?
+  userRoles    UserRole[]
+
+  documentSequences        DocumentSequence[]   @relation("DocumentSequence_branch")
+  restaurantTables         RestaurantTable[]    @relation("RestaurantTable_branch")
+  tableSessions            TableSession[]       @relation("TableSession_branch")
+  kitchenStations          KitchenStation[]     @relation("KitchenStation_branch")
+  orders                   Order[]              @relation("Order_branch")
+  kitchenTickets           KitchenTicket[]      @relation("KitchenTicket_branch")
+  invoices                 Invoice[]            @relation("Invoice_branch")
+  payments                 Payment[]            @relation("Payment_branch")
+  refunds                  Refund[]             @relation("Refund_branch")
+  creditNotes              CreditNote[]         @relation("CreditNote_branch")
+  inventoryBalances        InventoryBalance[]   @relation("InventoryBalance_branch")
+  stockMovements           StockMovement[]      @relation("StockMovement_branch")
+  stockAdjustments         StockAdjustment[]    @relation("StockAdjustment_branch")
+  wastageRecords           WastageRecord[]      @relation("WastageRecord_branch")
+  purchaseOrders           PurchaseOrder[]      @relation("PurchaseOrder_branch")
+  goodsReceipts            GoodsReceipt[]       @relation("GoodsReceipt_branch")
+  supplierInvoices         SupplierInvoice[]    @relation("SupplierInvoice_branch")
+  expenses                 Expense[]            @relation("Expense_branch")
+  cashSessions             CashSession[]        @relation("CashSession_branch")
+  cashMovements            CashMovement[]       @relation("CashMovement_branch")
+  attendances              Attendance[]         @relation("Attendance_branch")
+  employeeShifts           EmployeeShift[]      @relation("EmployeeShift_branch")
+  discounts                Discount[]           @relation("Discount_branch")
+  supplierPayments         SupplierPayment[]    @relation("SupplierPayment_branch")
+  notifications            Notification[]       @relation("Notification_branch")
+  employeesByPrimaryBranch Employee[]           @relation("Employee_primaryBranch")
+  branchProductPrices      BranchProductPrice[] @relation("BranchProductPrice_branch")
+
+  @@unique([organizationId, code])
+  @@unique([id, organizationId]) // lets child tables enforce branch ∈ organization
+  @@index([organizationId])
+  @@map("branches")
+}
+
+model BranchSettings {
+  branchId              String               @id @map("branch_id") @db.Uuid
+  organizationId        String               @map("organization_id") @db.Uuid
+  taxPricingMode        TaxPricingMode       @default(EXCLUSIVE) @map("tax_pricing_mode")
+  roundingMode          RoundingMode         @default(NEAREST_RUPEE) @map("rounding_mode")
+  invoicePrefix         String               @default("INV") @map("invoice_prefix") @db.VarChar(10)
+  stockDeductionPolicy  StockDeductionPolicy @default(ON_ORDER_COMPLETE) @map("stock_deduction_policy")
+  allowNegativeStock    Boolean              @default(true) @map("allow_negative_stock")
+  serviceChargePercent  Decimal              @default(0) @map("service_charge_percent") @db.Decimal(6, 3)
+  maxCashierDiscountPct Decimal              @default(10) @map("max_cashier_discount_pct") @db.Decimal(6, 3)
+  extra                 Json                 @default("{}")
+  updatedAt             DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch Branch @relation(fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([branchId, organizationId])
+  @@map("branch_settings")
+}
+
+model DocumentSequence {
+  id             String       @id @default(uuid()) @db.Uuid
+  organizationId String       @map("organization_id") @db.Uuid
+  branchId       String       @map("branch_id") @db.Uuid
+  type           SequenceType
+  prefix         String       @db.VarChar(16)
+  period         String       @db.VarChar(10) // e.g. financial year "2026-27" or day "20261106" for KOTs
+  nextValue      Int          @default(1) @map("next_value")
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  branch                Branch       @relation("DocumentSequence_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  invoicesBySequence    Invoice[]    @relation("Invoice_sequence")
+  creditNotesBySequence CreditNote[] @relation("CreditNote_sequence")
+
+  @@unique([branchId, type, prefix, period])
+  @@index([organizationId])
+  @@map("document_sequences")
+}
+
+// ───────────────────────────── Authentication & RBAC ─────────────────────────────
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  organizationId      String    @map("organization_id") @db.Uuid
+  email               String    @unique // stored lower-cased
+  phone               String?
+  fullName            String    @map("full_name")
+  passwordHash        String    @map("password_hash")
+  isActive            Boolean   @default(true) @map("is_active")
+  failedLoginAttempts Int       @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime? @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt         DateTime? @map("last_login_at") @db.Timestamptz(3)
+  passwordChangedAt   DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  createdById         String?   @map("created_by_id") @db.Uuid
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  organization        Organization         @relation(fields: [organizationId], references: [id])
+  userRoles           UserRole[]           @relation("UserRoleUser")
+  sessions            Session[]
+  passwordResetTokens PasswordResetToken[]
+  employee            Employee?
+
+  cashSessionsByUser            CashSession[]       @relation("CashSession_user")
+  kitchenTicketItemsByUpdatedBy KitchenTicketItem[] @relation("KitchenTicketItem_updatedBy")
+
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Role {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  key            String   @db.VarChar(50) // SUPER_ADMIN, OWNER, MANAGER, ... or custom
+  name           String
+  description    String?
+  isSystem       Boolean  @default(false) @map("is_system")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@unique([organizationId, key])
+  @@unique([id, organizationId])
+  @@map("roles")
+}
+
+model Permission {
+  id          String @id @default(uuid()) @db.Uuid
+  code        String @unique @db.VarChar(80) // e.g. "billing.discount.apply"
+  module      String @db.VarChar(40)
+  description String
+
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String   @map("role_id") @db.Uuid
+  permissionId String   @map("permission_id") @db.Uuid
+  grantedById  String?  @map("granted_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+/// branch_id NULL = the role applies to every branch of the organization.
+model UserRole {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  roleId         String   @map("role_id") @db.Uuid
+  branchId       String?  @map("branch_id") @db.Uuid
+  assignedById   String?  @map("assigned_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user   User    @relation("UserRoleUser", fields: [userId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  role   Role    @relation(fields: [roleId, organizationId], references: [id, organizationId], onDelete: Cascade)
+  branch Branch? @relation(fields: [branchId], references: [id])
+
+  @@unique([userId, roleId, branchId], map: "user_roles_user_role_branch_key") // NULLS NOT DISTINCT (see SQL migration)
+  @@index([userId])
+  @@index([organizationId])
+  @@map("user_roles")
+}
+
+model Session {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  ip             String?
+  userAgent      String?   @map("user_agent")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastUsedAt     DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  expiresAt      DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(3)
+  revokeReason   String?   @map("revoke_reason")
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  organization Organization @relation("Session_organization", fields: [organizationId], references: [id])
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Opaque refresh tokens, stored as SHA-256 hashes. Rotated on every use; reuse of a
+/// rotated token revokes the whole session (token-family reuse detection).
+model RefreshToken {
+  id           String    @id @default(uuid()) @db.Uuid
+  sessionId    String    @map("session_id") @db.Uuid
+  tokenHash    String    @unique @map("token_hash") @db.VarChar(64)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt    DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt       DateTime? @map("used_at") @db.Timestamptz(3)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(3)
+  replacedById String?   @map("replaced_by_id") @db.Uuid
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime? @map("used_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+// ───────────────────────────── Tables & floor ─────────────────────────────
+
+model RestaurantTable {
+  id             String      @id @default(uuid()) @db.Uuid
+  organizationId String      @map("organization_id") @db.Uuid
+  branchId       String      @map("branch_id") @db.Uuid
+  label          String      @db.VarChar(20)
+  area           String?     @db.VarChar(50)
+  capacity       Int
+  status         TableStatus @default(AVAILABLE)
+  shape          String      @default("RECT") @db.VarChar(10)
+  posX           Int         @default(0) @map("pos_x")
+  posY           Int         @default(0) @map("pos_y")
+  width          Int         @default(80)
+  height         Int         @default(80)
+  isActive       Boolean     @default(true) @map("is_active")
+  version        Int         @default(0)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime?   @map("deleted_at") @db.Timestamptz(3)
+
+  sessions TableSession[]
+
+  branch Branch @relation("RestaurantTable_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([branchId, label])
+  @@index([organizationId, branchId])
+  @@map("restaurant_tables")
+}
+
+model TableSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  tableId        String    @map("table_id") @db.Uuid
+  guestCount     Int       @default(1) @map("guest_count")
+  mergedIntoId   String?   @map("merged_into_id") @db.Uuid
+  openedById     String    @map("opened_by_id") @db.Uuid
+  openedAt       DateTime  @default(now()) @map("opened_at") @db.Timestamptz(3)
+  closedById     String?   @map("closed_by_id") @db.Uuid
+  closedAt       DateTime? @map("closed_at") @db.Timestamptz(3)
+
+  table      RestaurantTable @relation(fields: [tableId], references: [id])
+  mergedInto TableSession?   @relation("TableSessionMerge", fields: [mergedIntoId], references: [id])
+  merged     TableSession[]  @relation("TableSessionMerge")
+  orders     Order[]
+
+  branch Branch @relation("TableSession_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@index([branchId, closedAt])
+  @@map("table_sessions")
+}
+
+// ───────────────────────────── Menu ─────────────────────────────
+
+model Category {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  parentId       String?   @map("parent_id") @db.Uuid
+  name           String
+  sortOrder      Int       @default(0) @map("sort_order")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  products Product[]
+
+  organization Organization @relation("Category_organization", fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@map("categories")
+}
+
+model TaxRate {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String // "GST 5% (Restaurant)"
+  rate           Decimal   @db.Decimal(6, 3) // total GST rate
+  cgstRate       Decimal   @map("cgst_rate") @db.Decimal(6, 3)
+  sgstRate       Decimal   @map("sgst_rate") @db.Decimal(6, 3)
+  igstRate       Decimal   @map("igst_rate") @db.Decimal(6, 3)
+  cessRate       Decimal   @default(0) @map("cess_rate") @db.Decimal(6, 3)
+  isActive       Boolean   @default(true) @map("is_active")
+  effectiveFrom  DateTime  @default(now()) @map("effective_from") @db.Timestamptz(3)
+  effectiveTo    DateTime? @map("effective_to") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products Product[]
+
+  organization Organization @relation("TaxRate_organization", fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@map("tax_rates")
+}
+
+model KitchenStation {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  code           String   @db.VarChar(20)
+  name           String
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  tickets KitchenTicket[]
+
+  branch Branch @relation("KitchenStation_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([branchId, code])
+  @@map("kitchen_stations")
+}
+
+model Product {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  categoryId     String    @map("category_id") @db.Uuid
+  taxRateId      String?   @map("tax_rate_id") @db.Uuid
+  sku            String    @db.VarChar(40)
+  name           String
+  description    String?
+  imageUrl       String?   @map("image_url")
+  basePrice      Decimal   @map("base_price") @db.Decimal(14, 2)
+  hsnSac         String?   @map("hsn_sac") @db.VarChar(8)
+  isVeg          Boolean   @default(true) @map("is_veg")
+  stationCode    String?   @map("station_code") @db.VarChar(20) // routes KOT lines to a kitchen station
+  isCombo        Boolean   @default(false) @map("is_combo")
+  isActive       Boolean   @default(true) @map("is_active")
+  isAvailable    Boolean   @default(true) @map("is_available") // temporary 86
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  category       Category               @relation(fields: [categoryId], references: [id])
+  taxRate        TaxRate?               @relation(fields: [taxRateId], references: [id])
+  variants       ProductVariant[]
+  modifierGroups ProductModifierGroup[]
+  branchPrices   BranchProductPrice[]
+  comboItems     ComboItem[]            @relation("ComboParent")
+  inCombos       ComboItem[]            @relation("ComboChild")
+  recipes        Recipe[]
+
+  organization        Organization @relation("Product_organization", fields: [organizationId], references: [id])
+  orderItemsByProduct OrderItem[]  @relation("OrderItem_product")
+
+  @@unique([organizationId, sku])
+  @@index([organizationId, categoryId])
+  @@map("products")
+}
+
+model ProductVariant {
+  id        String   @id @default(uuid()) @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  name      String // "Half", "Full", "Large"
+  price     Decimal  @db.Decimal(14, 2) // absolute price of this variant
+  isDefault Boolean  @default(false) @map("is_default")
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  branchProductPricesByVariant BranchProductPrice[] @relation("BranchProductPrice_variant")
+  comboItemsByVariant          ComboItem[]          @relation("ComboItem_variant")
+  recipesByVariant             Recipe[]             @relation("Recipe_variant")
+  orderItemsByVariant          OrderItem[]          @relation("OrderItem_variant")
+
+  @@unique([productId, name])
+  @@map("product_variants")
+}
+
+model ModifierGroup {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String // "Extra toppings"
+  minSelect      Int      @default(0) @map("min_select")
+  maxSelect      Int      @default(1) @map("max_select")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  modifiers Modifier[]
+  products  ProductModifierGroup[]
+
+  organization Organization @relation("ModifierGroup_organization", fields: [organizationId], references: [id])
+
+  @@map("modifier_groups")
+}
+
+model Modifier {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  name      String
+  price     Decimal  @default(0) @db.Decimal(14, 2)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  group ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  orderItemModifiersByModifier OrderItemModifier[] @relation("OrderItemModifier_modifier")
+
+  @@unique([groupId, name])
+  @@map("modifiers")
+}
+
+model ProductModifierGroup {
+  productId String @map("product_id") @db.Uuid
+  groupId   String @map("group_id") @db.Uuid
+  sortOrder Int    @default(0) @map("sort_order")
+
+  product Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  group   ModifierGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([productId, groupId])
+  @@map("product_modifier_groups")
+}
+
+model BranchProductPrice {
+  id          String   @id @default(uuid()) @db.Uuid
+  branchId    String   @map("branch_id") @db.Uuid
+  productId   String   @map("product_id") @db.Uuid
+  variantId   String?  @map("variant_id") @db.Uuid
+  price       Decimal  @db.Decimal(14, 2)
+  isAvailable Boolean  @default(true) @map("is_available")
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  branch  Branch          @relation("BranchProductPrice_branch", fields: [branchId], references: [id])
+  variant ProductVariant? @relation("BranchProductPrice_variant", fields: [variantId], references: [id])
+
+  @@unique([branchId, productId, variantId], map: "branch_product_prices_key") // NULLS NOT DISTINCT (see SQL migration)
+  @@index([branchId])
+  @@map("branch_product_prices")
+}
+
+model ComboItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  comboProductId String  @map("combo_product_id") @db.Uuid
+  productId      String  @map("product_id") @db.Uuid
+  variantId      String? @map("variant_id") @db.Uuid
+  quantity       Decimal @db.Decimal(14, 3)
+
+  combo   Product @relation("ComboParent", fields: [comboProductId], references: [id], onDelete: Cascade)
+  product Product @relation("ComboChild", fields: [productId], references: [id])
+
+  variant ProductVariant? @relation("ComboItem_variant", fields: [variantId], references: [id])
+
+  @@map("combo_items")
+}
+
+// ───────────────────────────── Orders & KOT ─────────────────────────────
+
+model Order {
+  id              String        @id @default(uuid()) @db.Uuid
+  organizationId  String        @map("organization_id") @db.Uuid
+  branchId        String        @map("branch_id") @db.Uuid
+  orderNumber     String        @map("order_number") @db.VarChar(30)
+  orderType       OrderType     @map("order_type")
+  status          OrderStatus   @default(NEW)
+  tableSessionId  String?       @map("table_session_id") @db.Uuid
+  customerName    String?       @map("customer_name")
+  customerPhone   String?       @map("customer_phone")
+  deliveryAddress String?       @map("delivery_address")
+  notes           String?
+  guestCount      Int?          @map("guest_count")
+  subtotal        Decimal       @default(0) @db.Decimal(14, 2)
+  discountTotal   Decimal       @default(0) @map("discount_total") @db.Decimal(14, 2)
+  taxableAmount   Decimal       @default(0) @map("taxable_amount") @db.Decimal(14, 2)
+  cgstAmount      Decimal       @default(0) @map("cgst_amount") @db.Decimal(14, 2)
+  sgstAmount      Decimal       @default(0) @map("sgst_amount") @db.Decimal(14, 2)
+  igstAmount      Decimal       @default(0) @map("igst_amount") @db.Decimal(14, 2)
+  taxTotal        Decimal       @default(0) @map("tax_total") @db.Decimal(14, 2)
+  serviceCharge   Decimal       @default(0) @map("service_charge") @db.Decimal(14, 2)
+  roundOff        Decimal       @default(0) @map("round_off") @db.Decimal(14, 2)
+  grandTotal      Decimal       @default(0) @map("grand_total") @db.Decimal(14, 2)
+  paidAmount      Decimal       @default(0) @map("paid_amount") @db.Decimal(14, 2)
+  paymentStatus   PaymentStatus @default(UNPAID) @map("payment_status")
+  version         Int           @default(0) // optimistic concurrency
+  createdById     String        @map("created_by_id") @db.Uuid
+  confirmedAt     DateTime?     @map("confirmed_at") @db.Timestamptz(3)
+  completedAt     DateTime?     @map("completed_at") @db.Timestamptz(3)
+  cancelledAt     DateTime?     @map("cancelled_at") @db.Timestamptz(3)
+  cancelledById   String?       @map("cancelled_by_id") @db.Uuid
+  cancelReason    String?       @map("cancel_reason")
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  tableSession     TableSession?        @relation(fields: [tableSessionId], references: [id])
+  items            OrderItem[]
+  statusHistory    OrderStatusHistory[]
+  kitchenTickets   KitchenTicket[]
+  invoices         Invoice[]
+  appliedDiscounts AppliedDiscount[]
+
+  branch          Branch    @relation("Order_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  paymentsByOrder Payment[] @relation("Payment_order")
+
+  @@unique([branchId, orderNumber])
+  @@index([organizationId, branchId, createdAt])
+  @@index([branchId, status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                  String          @id @default(uuid()) @db.Uuid
+  orderId             String          @map("order_id") @db.Uuid
+  productId           String          @map("product_id") @db.Uuid
+  variantId           String?         @map("variant_id") @db.Uuid
+  // price & tax snapshots – never recomputed from the live menu
+  productName         String          @map("product_name")
+  variantName         String?         @map("variant_name")
+  hsnSac              String?         @map("hsn_sac") @db.VarChar(8)
+  stationCode         String?         @map("station_code") @db.VarChar(20)
+  quantity            Decimal         @db.Decimal(14, 3)
+  unitPrice           Decimal         @map("unit_price") @db.Decimal(14, 2)
+  modifiersTotal      Decimal         @default(0) @map("modifiers_total") @db.Decimal(14, 2)
+  priceIncludesTax    Boolean         @map("price_includes_tax")
+  lineSubtotal        Decimal         @map("line_subtotal") @db.Decimal(14, 2)
+  discountAmount      Decimal         @default(0) @map("discount_amount") @db.Decimal(14, 2)
+  taxableAmount       Decimal         @map("taxable_amount") @db.Decimal(14, 2)
+  taxRate             Decimal         @map("tax_rate") @db.Decimal(6, 3)
+  cgstAmount          Decimal         @default(0) @map("cgst_amount") @db.Decimal(14, 2)
+  sgstAmount          Decimal         @default(0) @map("sgst_amount") @db.Decimal(14, 2)
+  igstAmount          Decimal         @default(0) @map("igst_amount") @db.Decimal(14, 2)
+  taxAmount           Decimal         @map("tax_amount") @db.Decimal(14, 2)
+  lineTotal           Decimal         @map("line_total") @db.Decimal(14, 2)
+  specialInstructions String?         @map("special_instructions")
+  status              OrderItemStatus @default(ACTIVE)
+  kitchenStatus       KitchenStatus   @default(PENDING) @map("kitchen_status")
+  createdById         String          @map("created_by_id") @db.Uuid
+  cancelledById       String?         @map("cancelled_by_id") @db.Uuid
+  cancelledAt         DateTime?       @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason        String?         @map("cancel_reason")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order       Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  modifiers   OrderItemModifier[]
+  ticketItems KitchenTicketItem[]
+
+  product                     Product           @relation("OrderItem_product", fields: [productId], references: [id])
+  variant                     ProductVariant?   @relation("OrderItem_variant", fields: [variantId], references: [id])
+  appliedDiscountsByOrderItem AppliedDiscount[] @relation("AppliedDiscount_orderItem")
+  invoiceItemsByOrderItem     InvoiceItem[]     @relation("InvoiceItem_orderItem")
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id          String  @id @default(uuid()) @db.Uuid
+  orderItemId String  @map("order_item_id") @db.Uuid
+  modifierId  String  @map("modifier_id") @db.Uuid
+  name        String
+  price       Decimal @db.Decimal(14, 2)
+  quantity    Int     @default(1)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  modifier Modifier @relation("OrderItemModifier_modifier", fields: [modifierId], references: [id])
+
+  @@map("order_item_modifiers")
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(uuid()) @db.Uuid
+  orderId     String       @map("order_id") @db.Uuid
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus  @map("to_status")
+  reason      String?
+  changedById String       @map("changed_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+model KitchenTicket {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  branchId       String        @map("branch_id") @db.Uuid
+  orderId        String        @map("order_id") @db.Uuid
+  stationId      String?       @map("station_id") @db.Uuid
+  ticketNumber   String        @map("ticket_number") @db.VarChar(30)
+  status         KitchenStatus @default(PENDING)
+  createdById    String        @map("created_by_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  completedAt    DateTime?     @map("completed_at") @db.Timestamptz(3)
+
+  order   Order               @relation(fields: [orderId], references: [id])
+  station KitchenStation?     @relation(fields: [stationId], references: [id])
+  items   KitchenTicketItem[]
+
+  branch Branch @relation("KitchenTicket_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([branchId, ticketNumber])
+  @@index([branchId, status])
+  @@map("kitchen_tickets")
+}
+
+model KitchenTicketItem {
+  id          String        @id @default(uuid()) @db.Uuid
+  ticketId    String        @map("ticket_id") @db.Uuid
+  orderItemId String        @map("order_item_id") @db.Uuid
+  quantity    Decimal       @db.Decimal(14, 3)
+  status      KitchenStatus @default(PENDING)
+  startedAt   DateTime?     @map("started_at") @db.Timestamptz(3)
+  readyAt     DateTime?     @map("ready_at") @db.Timestamptz(3)
+  servedAt    DateTime?     @map("served_at") @db.Timestamptz(3)
+  updatedById String?       @map("updated_by_id") @db.Uuid
+
+  ticket    KitchenTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  orderItem OrderItem     @relation(fields: [orderItemId], references: [id])
+
+  updatedBy User? @relation("KitchenTicketItem_updatedBy", fields: [updatedById], references: [id])
+
+  @@index([ticketId])
+  @@map("kitchen_ticket_items")
+}
+
+// ───────────────────────────── Billing ─────────────────────────────
+
+model Discount {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  branchId       String?       @map("branch_id") @db.Uuid
+  code           String?       @db.VarChar(30)
+  name           String
+  type           DiscountType
+  scope          DiscountScope
+  value          Decimal       @db.Decimal(14, 2)
+  maxAmount      Decimal?      @map("max_amount") @db.Decimal(14, 2)
+  minOrderAmount Decimal?      @map("min_order_amount") @db.Decimal(14, 2)
+  isActive       Boolean       @default(true) @map("is_active")
+  validFrom      DateTime?     @map("valid_from") @db.Timestamptz(3)
+  validTo        DateTime?     @map("valid_to") @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  applied AppliedDiscount[]
+
+  branch Branch? @relation("Discount_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([organizationId, code])
+  @@map("discounts")
+}
+
+/// Every discount actually applied to an order or line, with the actor who applied/approved it.
+model AppliedDiscount {
+  id           String        @id @default(uuid()) @db.Uuid
+  orderId      String        @map("order_id") @db.Uuid
+  orderItemId  String?       @map("order_item_id") @db.Uuid
+  discountId   String?       @map("discount_id") @db.Uuid
+  type         DiscountType
+  scope        DiscountScope
+  value        Decimal       @db.Decimal(14, 2)
+  amount       Decimal       @db.Decimal(14, 2)
+  reason       String?
+  appliedById  String        @map("applied_by_id") @db.Uuid
+  approvedById String?       @map("approved_by_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order    Order     @relation(fields: [orderId], references: [id])
+  discount Discount? @relation(fields: [discountId], references: [id])
+
+  orderItem OrderItem? @relation("AppliedDiscount_orderItem", fields: [orderItemId], references: [id])
+
+  @@index([orderId])
+  @@map("applied_discounts")
+}
+
+model Invoice {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  branchId       String        @map("branch_id") @db.Uuid
+  orderId        String        @map("order_id") @db.Uuid
+  sequenceId     String        @map("sequence_id") @db.Uuid
+  invoiceNumber  String        @map("invoice_number") @db.VarChar(40)
+  invoiceDate    DateTime      @default(now()) @map("invoice_date") @db.Timestamptz(3)
+  status         InvoiceStatus @default(DRAFT)
+  supplyType     SupplyType    @map("supply_type")
+  placeOfSupply  String        @map("place_of_supply") @db.VarChar(2)
+  sellerDetails  Json          @map("seller_details") // legal name, GSTIN, address snapshot
+  buyerName      String?       @map("buyer_name")
+  buyerGstin     String?       @map("buyer_gstin") @db.VarChar(15)
+  subtotal       Decimal       @db.Decimal(14, 2)
+  discountTotal  Decimal       @map("discount_total") @db.Decimal(14, 2)
+  taxableAmount  Decimal       @map("taxable_amount") @db.Decimal(14, 2)
+  cgstAmount     Decimal       @map("cgst_amount") @db.Decimal(14, 2)
+  sgstAmount     Decimal       @map("sgst_amount") @db.Decimal(14, 2)
+  igstAmount     Decimal       @map("igst_amount") @db.Decimal(14, 2)
+  taxTotal       Decimal       @map("tax_total") @db.Decimal(14, 2)
+  serviceCharge  Decimal       @default(0) @map("service_charge") @db.Decimal(14, 2)
+  roundOff       Decimal       @map("round_off") @db.Decimal(14, 2)
+  grandTotal     Decimal       @map("grand_total") @db.Decimal(14, 2)
+  paidAmount     Decimal       @default(0) @map("paid_amount") @db.Decimal(14, 2)
+  refundedAmount Decimal       @default(0) @map("refunded_amount") @db.Decimal(14, 2)
+  paymentStatus  PaymentStatus @default(UNPAID) @map("payment_status")
+  createdById    String        @map("created_by_id") @db.Uuid
+  finalizedById  String?       @map("finalized_by_id") @db.Uuid
+  finalizedAt    DateTime?     @map("finalized_at") @db.Timestamptz(3)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order       Order               @relation(fields: [orderId], references: [id])
+  items       InvoiceItem[]
+  allocations PaymentAllocation[]
+  refunds     Refund[]
+  creditNotes CreditNote[]
+
+  branch   Branch           @relation("Invoice_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  sequence DocumentSequence @relation("Invoice_sequence", fields: [sequenceId], references: [id])
+
+  @@unique([sequenceId, invoiceNumber])
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId, branchId, invoiceDate])
+  @@index([orderId])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  invoiceId     String  @map("invoice_id") @db.Uuid
+  orderItemId   String? @map("order_item_id") @db.Uuid
+  description   String
+  hsnSac        String? @map("hsn_sac") @db.VarChar(8)
+  quantity      Decimal @db.Decimal(14, 3)
+  unitPrice     Decimal @map("unit_price") @db.Decimal(14, 2)
+  discount      Decimal @default(0) @db.Decimal(14, 2)
+  taxableAmount Decimal @map("taxable_amount") @db.Decimal(14, 2)
+  cgstRate      Decimal @default(0) @map("cgst_rate") @db.Decimal(6, 3)
+  cgstAmount    Decimal @default(0) @map("cgst_amount") @db.Decimal(14, 2)
+  sgstRate      Decimal @default(0) @map("sgst_rate") @db.Decimal(6, 3)
+  sgstAmount    Decimal @default(0) @map("sgst_amount") @db.Decimal(14, 2)
+  igstRate      Decimal @default(0) @map("igst_rate") @db.Decimal(6, 3)
+  igstAmount    Decimal @default(0) @map("igst_amount") @db.Decimal(14, 2)
+  lineTotal     Decimal @map("line_total") @db.Decimal(14, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  creditNoteItemsByInvoiceItem CreditNoteItem[] @relation("CreditNoteItem_invoiceItem")
+  orderItem                    OrderItem?       @relation("InvoiceItem_orderItem", fields: [orderItemId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+model Payment {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  branchId       String            @map("branch_id") @db.Uuid
+  orderId        String?           @map("order_id") @db.Uuid
+  method         PaymentMethod
+  amount         Decimal           @db.Decimal(14, 2)
+  status         TransactionStatus @default(COMPLETED)
+  reference      String? // UPI RRN / card approval code
+  cashSessionId  String?           @map("cash_session_id") @db.Uuid
+  idempotencyKey String?           @map("idempotency_key") @db.VarChar(100)
+  receivedById   String            @map("received_by_id") @db.Uuid
+  receivedAt     DateTime          @default(now()) @map("received_at") @db.Timestamptz(3)
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  allocations PaymentAllocation[]
+  refunds     Refund[]
+
+  branch      Branch       @relation("Payment_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  order       Order?       @relation("Payment_order", fields: [orderId], references: [id])
+  cashSession CashSession? @relation("Payment_cashSession", fields: [cashSessionId], references: [id])
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, branchId, receivedAt])
+  @@map("payments")
+}
+
+model PaymentAllocation {
+  id        String   @id @default(uuid()) @db.Uuid
+  paymentId String   @map("payment_id") @db.Uuid
+  invoiceId String   @map("invoice_id") @db.Uuid
+  amount    Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@unique([paymentId, invoiceId])
+  @@map("payment_allocations")
+}
+
+model Refund {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  branchId       String            @map("branch_id") @db.Uuid
+  paymentId      String            @map("payment_id") @db.Uuid // refunds always reference the original payment
+  invoiceId      String            @map("invoice_id") @db.Uuid
+  creditNoteId   String?           @map("credit_note_id") @db.Uuid
+  method         PaymentMethod
+  amount         Decimal           @db.Decimal(14, 2)
+  reason         String
+  status         TransactionStatus @default(COMPLETED)
+  restock        Boolean           @default(false)
+  cashSessionId  String?           @map("cash_session_id") @db.Uuid
+  idempotencyKey String?           @map("idempotency_key") @db.VarChar(100)
+  approvedById   String?           @map("approved_by_id") @db.Uuid
+  processedById  String            @map("processed_by_id") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  payment    Payment     @relation(fields: [paymentId], references: [id])
+  invoice    Invoice     @relation(fields: [invoiceId], references: [id])
+  creditNote CreditNote? @relation(fields: [creditNoteId], references: [id])
+
+  branch      Branch       @relation("Refund_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  cashSession CashSession? @relation("Refund_cashSession", fields: [cashSessionId], references: [id])
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([invoiceId])
+  @@map("refunds")
+}
+
+model CreditNote {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @map("organization_id") @db.Uuid
+  branchId         String   @map("branch_id") @db.Uuid
+  invoiceId        String   @map("invoice_id") @db.Uuid
+  sequenceId       String   @map("sequence_id") @db.Uuid
+  creditNoteNumber String   @map("credit_note_number") @db.VarChar(40)
+  reason           String
+  taxableAmount    Decimal  @map("taxable_amount") @db.Decimal(14, 2)
+  cgstAmount       Decimal  @map("cgst_amount") @db.Decimal(14, 2)
+  sgstAmount       Decimal  @map("sgst_amount") @db.Decimal(14, 2)
+  igstAmount       Decimal  @map("igst_amount") @db.Decimal(14, 2)
+  totalAmount      Decimal  @map("total_amount") @db.Decimal(14, 2)
+  createdById      String   @map("created_by_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  invoice Invoice          @relation(fields: [invoiceId], references: [id])
+  items   CreditNoteItem[]
+  refunds Refund[]
+
+  branch   Branch           @relation("CreditNote_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  sequence DocumentSequence @relation("CreditNote_sequence", fields: [sequenceId], references: [id])
+
+  @@unique([organizationId, creditNoteNumber])
+  @@map("credit_notes")
+}
+
+model CreditNoteItem {
+  id            String  @id @default(uuid()) @db.Uuid
+  creditNoteId  String  @map("credit_note_id") @db.Uuid
+  invoiceItemId String  @map("invoice_item_id") @db.Uuid
+  quantity      Decimal @db.Decimal(14, 3)
+  taxableAmount Decimal @map("taxable_amount") @db.Decimal(14, 2)
+  taxAmount     Decimal @map("tax_amount") @db.Decimal(14, 2)
+  lineTotal     Decimal @map("line_total") @db.Decimal(14, 2)
+
+  creditNote CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
+
+  invoiceItem InvoiceItem @relation("CreditNoteItem_invoiceItem", fields: [invoiceItemId], references: [id])
+
+  @@map("credit_note_items")
+}
+
+// ───────────────────────────── Recipes & Inventory ─────────────────────────────
+
+model Unit {
+  id           String        @id @default(uuid()) @db.Uuid
+  code         String        @unique @db.VarChar(10) // g, kg, ml, l, pc, dozen
+  name         String
+  dimension    UnitDimension
+  factorToBase Decimal       @map("factor_to_base") @db.Decimal(18, 6) // kg → 1000 (base g)
+
+  ingredientsByBaseUnit    Ingredient[]        @relation("Ingredient_baseUnit")
+  recipeItemsByUnit        RecipeItem[]        @relation("RecipeItem_unit")
+  purchaseOrderItemsByUnit PurchaseOrderItem[] @relation("PurchaseOrderItem_unit")
+  goodsReceiptItemsByUnit  GoodsReceiptItem[]  @relation("GoodsReceiptItem_unit")
+
+  @@map("units")
+}
+
+model Ingredient {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  name           String
+  sku            String?   @db.VarChar(40)
+  baseUnitId     String    @map("base_unit_id") @db.Uuid
+  category       String?
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  balances  InventoryBalance[]
+  movements StockMovement[]
+
+  organization                   Organization        @relation("Ingredient_organization", fields: [organizationId], references: [id])
+  baseUnit                       Unit                @relation("Ingredient_baseUnit", fields: [baseUnitId], references: [id])
+  recipeItemsByIngredient        RecipeItem[]        @relation("RecipeItem_ingredient")
+  stockAdjustmentsByIngredient   StockAdjustment[]   @relation("StockAdjustment_ingredient")
+  wastageRecordsByIngredient     WastageRecord[]     @relation("WastageRecord_ingredient")
+  purchaseOrderItemsByIngredient PurchaseOrderItem[] @relation("PurchaseOrderItem_ingredient")
+  goodsReceiptItemsByIngredient  GoodsReceiptItem[]  @relation("GoodsReceiptItem_ingredient")
+
+  @@unique([organizationId, name])
+  @@map("ingredients")
+}
+
+model Recipe {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  productId      String   @map("product_id") @db.Uuid
+  variantId      String?  @map("variant_id") @db.Uuid
+  yieldQuantity  Decimal  @default(1) @map("yield_quantity") @db.Decimal(14, 3)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product      @relation(fields: [productId], references: [id])
+  items   RecipeItem[]
+
+  organization Organization    @relation("Recipe_organization", fields: [organizationId], references: [id])
+  variant      ProductVariant? @relation("Recipe_variant", fields: [variantId], references: [id])
+
+  @@map("recipes")
+}
+
+model RecipeItem {
+  id             String  @id @default(uuid()) @db.Uuid
+  recipeId       String  @map("recipe_id") @db.Uuid
+  ingredientId   String  @map("ingredient_id") @db.Uuid
+  quantity       Decimal @db.Decimal(14, 3)
+  unitId         String  @map("unit_id") @db.Uuid
+  wastagePercent Decimal @default(0) @map("wastage_percent") @db.Decimal(6, 3)
+
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  ingredient Ingredient @relation("RecipeItem_ingredient", fields: [ingredientId], references: [id])
+  unit       Unit       @relation("RecipeItem_unit", fields: [unitId], references: [id])
+
+  @@unique([recipeId, ingredientId])
+  @@map("recipe_items")
+}
+
+model InventoryBalance {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  quantity       Decimal  @default(0) @db.Decimal(14, 3) // in the ingredient's base unit
+  minimumLevel   Decimal  @default(0) @map("minimum_level") @db.Decimal(14, 3)
+  averageCost    Decimal  @default(0) @map("average_cost") @db.Decimal(14, 4) // per base unit
+  version        Int      @default(0)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
+  branch Branch @relation("InventoryBalance_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([branchId, ingredientId])
+  @@index([organizationId])
+  @@map("inventory_balances")
+}
+
+/// Append-only stock ledger. dedupe_key makes each business event deduct stock at most once
+/// (e.g. "order_item:<id>:consume").
+model StockMovement {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  branchId       String            @map("branch_id") @db.Uuid
+  ingredientId   String            @map("ingredient_id") @db.Uuid
+  type           StockMovementType
+  quantity       Decimal           @db.Decimal(14, 3) // signed, base unit
+  unitCost       Decimal?          @map("unit_cost") @db.Decimal(14, 4)
+  balanceAfter   Decimal           @map("balance_after") @db.Decimal(14, 3)
+  referenceType  String            @map("reference_type") @db.VarChar(40)
+  referenceId    String            @map("reference_id") @db.Uuid
+  dedupeKey      String            @unique @map("dedupe_key") @db.VarChar(150)
+  note           String?
+  createdById    String            @map("created_by_id") @db.Uuid
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  ingredient Ingredient @relation(fields: [ingredientId], references: [id])
+
+  branch Branch @relation("StockMovement_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@index([branchId, ingredientId, createdAt])
+  @@index([referenceType, referenceId])
+  @@map("stock_movements")
+}
+
+model StockAdjustment {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  quantity       Decimal  @db.Decimal(14, 3) // signed, base unit
+  reason         String
+  createdById    String   @map("created_by_id") @db.Uuid
+  approvedById   String?  @map("approved_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  branch     Branch     @relation("StockAdjustment_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  ingredient Ingredient @relation("StockAdjustment_ingredient", fields: [ingredientId], references: [id])
+
+  @@index([branchId, createdAt])
+  @@map("stock_adjustments")
+}
+
+model WastageRecord {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  branchId       String   @map("branch_id") @db.Uuid
+  ingredientId   String   @map("ingredient_id") @db.Uuid
+  quantity       Decimal  @db.Decimal(14, 3) // base unit, positive
+  cost           Decimal  @default(0) @db.Decimal(14, 2)
+  reason         String
+  recordedById   String   @map("recorded_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  branch     Branch     @relation("WastageRecord_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  ingredient Ingredient @relation("WastageRecord_ingredient", fields: [ingredientId], references: [id])
+
+  @@index([branchId, createdAt])
+  @@map("wastage_records")
+}
+
+// ───────────────────────────── Purchasing ─────────────────────────────
+
+model Supplier {
+  id               String    @id @default(uuid()) @db.Uuid
+  organizationId   String    @map("organization_id") @db.Uuid
+  name             String
+  contactPerson    String?   @map("contact_person")
+  phone            String?
+  email            String?
+  gstin            String?   @db.VarChar(15)
+  stateCode        String?   @map("state_code") @db.VarChar(2)
+  address          String?
+  paymentTermsDays Int       @default(0) @map("payment_terms_days")
+  isActive         Boolean   @default(true) @map("is_active")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt        DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  purchaseOrders PurchaseOrder[]
+  invoices       SupplierInvoice[]
+  payments       SupplierPayment[]
+
+  organization            Organization   @relation("Supplier_organization", fields: [organizationId], references: [id])
+  goodsReceiptsBySupplier GoodsReceipt[] @relation("GoodsReceipt_supplier")
+
+  @@unique([organizationId, name])
+  @@map("suppliers")
+}
+
+model PurchaseOrder {
+  id             String              @id @default(uuid()) @db.Uuid
+  organizationId String              @map("organization_id") @db.Uuid
+  branchId       String              @map("branch_id") @db.Uuid
+  supplierId     String              @map("supplier_id") @db.Uuid
+  poNumber       String              @map("po_number") @db.VarChar(30)
+  status         PurchaseOrderStatus @default(DRAFT)
+  orderDate      DateTime            @default(now()) @map("order_date") @db.Timestamptz(3)
+  expectedDate   DateTime?           @map("expected_date") @db.Timestamptz(3)
+  subtotal       Decimal             @default(0) @db.Decimal(14, 2)
+  taxTotal       Decimal             @default(0) @map("tax_total") @db.Decimal(14, 2)
+  total          Decimal             @default(0) @db.Decimal(14, 2)
+  notes          String?
+  createdById    String              @map("created_by_id") @db.Uuid
+  approvedById   String?             @map("approved_by_id") @db.Uuid
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  items    PurchaseOrderItem[]
+  receipts GoodsReceipt[]
+
+  branch                          Branch            @relation("PurchaseOrder_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  supplierInvoicesByPurchaseOrder SupplierInvoice[] @relation("SupplierInvoice_purchaseOrder")
+
+  @@unique([organizationId, poNumber])
+  @@index([branchId, status])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id               String  @id @default(uuid()) @db.Uuid
+  purchaseOrderId  String  @map("purchase_order_id") @db.Uuid
+  ingredientId     String  @map("ingredient_id") @db.Uuid
+  unitId           String  @map("unit_id") @db.Uuid
+  quantity         Decimal @db.Decimal(14, 3)
+  receivedQuantity Decimal @default(0) @map("received_quantity") @db.Decimal(14, 3)
+  unitPrice        Decimal @map("unit_price") @db.Decimal(14, 4)
+  taxRate          Decimal @default(0) @map("tax_rate") @db.Decimal(6, 3)
+  lineTotal        Decimal @map("line_total") @db.Decimal(14, 2)
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  ingredient                           Ingredient         @relation("PurchaseOrderItem_ingredient", fields: [ingredientId], references: [id])
+  unit                                 Unit               @relation("PurchaseOrderItem_unit", fields: [unitId], references: [id])
+  goodsReceiptItemsByPurchaseOrderItem GoodsReceiptItem[] @relation("GoodsReceiptItem_purchaseOrderItem")
+
+  @@map("purchase_order_items")
+}
+
+model GoodsReceipt {
+  id                String   @id @default(uuid()) @db.Uuid
+  organizationId    String   @map("organization_id") @db.Uuid
+  branchId          String   @map("branch_id") @db.Uuid
+  purchaseOrderId   String?  @map("purchase_order_id") @db.Uuid
+  supplierId        String   @map("supplier_id") @db.Uuid
+  supplierInvoiceId String?  @map("supplier_invoice_id") @db.Uuid
+  grnNumber         String   @map("grn_number") @db.VarChar(30)
+  receivedAt        DateTime @default(now()) @map("received_at") @db.Timestamptz(3)
+  notes             String?
+  receivedById      String   @map("received_by_id") @db.Uuid
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  purchaseOrder PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id])
+  items         GoodsReceiptItem[]
+
+  branch          Branch           @relation("GoodsReceipt_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  supplier        Supplier         @relation("GoodsReceipt_supplier", fields: [supplierId], references: [id])
+  supplierInvoice SupplierInvoice? @relation("GoodsReceipt_supplierInvoice", fields: [supplierInvoiceId], references: [id])
+
+  @@unique([organizationId, grnNumber])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptItem {
+  id                  String  @id @default(uuid()) @db.Uuid
+  goodsReceiptId      String  @map("goods_receipt_id") @db.Uuid
+  purchaseOrderItemId String? @map("purchase_order_item_id") @db.Uuid
+  ingredientId        String  @map("ingredient_id") @db.Uuid
+  unitId              String  @map("unit_id") @db.Uuid
+  quantity            Decimal @db.Decimal(14, 3)
+  baseQuantity        Decimal @map("base_quantity") @db.Decimal(14, 3)
+  unitPrice           Decimal @map("unit_price") @db.Decimal(14, 4)
+
+  goodsReceipt GoodsReceipt @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
+
+  purchaseOrderItem PurchaseOrderItem? @relation("GoodsReceiptItem_purchaseOrderItem", fields: [purchaseOrderItemId], references: [id])
+  ingredient        Ingredient         @relation("GoodsReceiptItem_ingredient", fields: [ingredientId], references: [id])
+  unit              Unit               @relation("GoodsReceiptItem_unit", fields: [unitId], references: [id])
+
+  @@map("goods_receipt_items")
+}
+
+model SupplierInvoice {
+  id              String                @id @default(uuid()) @db.Uuid
+  organizationId  String                @map("organization_id") @db.Uuid
+  branchId        String                @map("branch_id") @db.Uuid
+  supplierId      String                @map("supplier_id") @db.Uuid
+  purchaseOrderId String?               @map("purchase_order_id") @db.Uuid
+  invoiceNumber   String                @map("invoice_number") @db.VarChar(40)
+  invoiceDate     DateTime              @map("invoice_date") @db.Date
+  dueDate         DateTime?             @map("due_date") @db.Date
+  subtotal        Decimal               @db.Decimal(14, 2)
+  taxTotal        Decimal               @map("tax_total") @db.Decimal(14, 2)
+  total           Decimal               @db.Decimal(14, 2)
+  paidAmount      Decimal               @default(0) @map("paid_amount") @db.Decimal(14, 2)
+  status          SupplierInvoiceStatus @default(UNPAID)
+  attachmentUrl   String?               @map("attachment_url")
+  createdById     String                @map("created_by_id") @db.Uuid
+  createdAt       DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime              @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  supplier Supplier          @relation(fields: [supplierId], references: [id])
+  payments SupplierPayment[]
+
+  branch                         Branch         @relation("SupplierInvoice_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  goodsReceiptsBySupplierInvoice GoodsReceipt[] @relation("GoodsReceipt_supplierInvoice")
+  purchaseOrder                  PurchaseOrder? @relation("SupplierInvoice_purchaseOrder", fields: [purchaseOrderId], references: [id])
+
+  @@unique([supplierId, invoiceNumber])
+  @@map("supplier_invoices")
+}
+
+model SupplierPayment {
+  id                String        @id @default(uuid()) @db.Uuid
+  organizationId    String        @map("organization_id") @db.Uuid
+  branchId          String?       @map("branch_id") @db.Uuid
+  supplierId        String        @map("supplier_id") @db.Uuid
+  supplierInvoiceId String?       @map("supplier_invoice_id") @db.Uuid
+  amount            Decimal       @db.Decimal(14, 2)
+  method            PaymentMethod
+  reference         String?
+  idempotencyKey    String?       @map("idempotency_key") @db.VarChar(100)
+  paidById          String        @map("paid_by_id") @db.Uuid
+  paidAt            DateTime      @default(now()) @map("paid_at") @db.Timestamptz(3)
+
+  supplier        Supplier         @relation(fields: [supplierId], references: [id])
+  supplierInvoice SupplierInvoice? @relation(fields: [supplierInvoiceId], references: [id])
+
+  branch Branch? @relation("SupplierPayment_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([organizationId, idempotencyKey])
+  @@map("supplier_payments")
+}
+
+// ───────────────────────────── Finance ─────────────────────────────
+
+model ExpenseCategory {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @map("organization_id") @db.Uuid
+  name           String
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  expenses Expense[]
+
+  organization Organization @relation("ExpenseCategory_organization", fields: [organizationId], references: [id])
+
+  @@unique([organizationId, name])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id             String        @id @default(uuid()) @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  branchId       String        @map("branch_id") @db.Uuid
+  categoryId     String        @map("category_id") @db.Uuid
+  amount         Decimal       @db.Decimal(14, 2)
+  taxAmount      Decimal       @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  description    String
+  expenseDate    DateTime      @map("expense_date") @db.Date
+  paymentMethod  PaymentMethod @map("payment_method")
+  paidTo         String?       @map("paid_to")
+  employeeId     String?       @map("employee_id") @db.Uuid
+  receiptUrl     String?       @map("receipt_url")
+  cashSessionId  String?       @map("cash_session_id") @db.Uuid
+  createdById    String        @map("created_by_id") @db.Uuid
+  updatedById    String?       @map("updated_by_id") @db.Uuid
+  deletedById    String?       @map("deleted_by_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(3)
+
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  branch      Branch       @relation("Expense_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  employee    Employee?    @relation("Expense_employee", fields: [employeeId], references: [id])
+  cashSession CashSession? @relation("Expense_cashSession", fields: [cashSessionId], references: [id])
+
+  @@index([organizationId, branchId, expenseDate])
+  @@map("expenses")
+}
+
+model CashSession {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  branchId       String            @map("branch_id") @db.Uuid
+  userId         String            @map("user_id") @db.Uuid
+  terminal       String?           @db.VarChar(40)
+  status         CashSessionStatus @default(OPEN)
+  openingBalance Decimal           @map("opening_balance") @db.Decimal(14, 2)
+  openedAt       DateTime          @default(now()) @map("opened_at") @db.Timestamptz(3)
+  expectedCash   Decimal?          @map("expected_cash") @db.Decimal(14, 2)
+  actualCash     Decimal?          @map("actual_cash") @db.Decimal(14, 2)
+  discrepancy    Decimal?          @db.Decimal(14, 2)
+  closingNotes   String?           @map("closing_notes")
+  closedById     String?           @map("closed_by_id") @db.Uuid
+  closedAt       DateTime?         @map("closed_at") @db.Timestamptz(3)
+
+  movements CashMovement[]
+
+  branch                Branch    @relation("CashSession_branch", fields: [branchId, organizationId], references: [id, organizationId])
+  paymentsByCashSession Payment[] @relation("Payment_cashSession")
+  refundsByCashSession  Refund[]  @relation("Refund_cashSession")
+  expensesByCashSession Expense[] @relation("Expense_cashSession")
+  user                  User      @relation("CashSession_user", fields: [userId], references: [id])
+
+  @@index([branchId, status])
+  @@map("cash_sessions")
+}
+
+model CashMovement {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  branchId       String           @map("branch_id") @db.Uuid
+  cashSessionId  String           @map("cash_session_id") @db.Uuid
+  type           CashMovementType
+  amount         Decimal          @db.Decimal(14, 2) // signed: + into drawer, − out of drawer
+  referenceType  String?          @map("reference_type") @db.VarChar(40)
+  referenceId    String?          @map("reference_id") @db.Uuid
+  note           String?
+  createdById    String           @map("created_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  cashSession CashSession @relation(fields: [cashSessionId], references: [id])
+
+  branch Branch @relation("CashMovement_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@index([cashSessionId])
+  @@map("cash_movements")
+}
+
+// ───────────────────────────── Employees ─────────────────────────────
+
+model Employee {
+  id              String    @id @default(uuid()) @db.Uuid
+  organizationId  String    @map("organization_id") @db.Uuid
+  userId          String?   @unique @map("user_id") @db.Uuid
+  primaryBranchId String?   @map("primary_branch_id") @db.Uuid
+  employeeCode    String    @map("employee_code") @db.VarChar(20)
+  fullName        String    @map("full_name")
+  phone           String?
+  email           String?
+  designation     String?
+  joiningDate     DateTime? @map("joining_date") @db.Date
+  monthlySalary   Decimal?  @map("monthly_salary") @db.Decimal(14, 2)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  user       User?           @relation(fields: [userId], references: [id])
+  attendance Attendance[]
+  shifts     EmployeeShift[]
+
+  primaryBranch      Branch?      @relation("Employee_primaryBranch", fields: [primaryBranchId, organizationId], references: [id, organizationId])
+  organization       Organization @relation("Employee_organization", fields: [organizationId], references: [id])
+  expensesByEmployee Expense[]    @relation("Expense_employee")
+
+  @@unique([organizationId, employeeCode])
+  @@map("employees")
+}
+
+model Attendance {
+  id             String           @id @default(uuid()) @db.Uuid
+  organizationId String           @map("organization_id") @db.Uuid
+  branchId       String           @map("branch_id") @db.Uuid
+  employeeId     String           @map("employee_id") @db.Uuid
+  workDate       DateTime         @map("work_date") @db.Date
+  status         AttendanceStatus @default(PRESENT)
+  clockInAt      DateTime?        @map("clock_in_at") @db.Timestamptz(3)
+  clockOutAt     DateTime?        @map("clock_out_at") @db.Timestamptz(3)
+  notes          String?
+  recordedById   String?          @map("recorded_by_id") @db.Uuid
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  branch Branch @relation("Attendance_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@unique([employeeId, workDate])
+  @@map("attendance")
+}
+
+model EmployeeShift {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  employeeId     String    @map("employee_id") @db.Uuid
+  scheduledStart DateTime  @map("scheduled_start") @db.Timestamptz(3)
+  scheduledEnd   DateTime  @map("scheduled_end") @db.Timestamptz(3)
+  actualStart    DateTime? @map("actual_start") @db.Timestamptz(3)
+  actualEnd      DateTime? @map("actual_end") @db.Timestamptz(3)
+  notes          String?
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  employee Employee @relation(fields: [employeeId], references: [id])
+
+  branch Branch @relation("EmployeeShift_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@index([branchId, scheduledStart])
+  @@map("employee_shifts")
+}
+
+// ───────────────────────────── System ─────────────────────────────
+
+model Notification {
+  id             String    @id @default(uuid()) @db.Uuid
+  organizationId String    @map("organization_id") @db.Uuid
+  branchId       String?   @map("branch_id") @db.Uuid
+  userId         String?   @map("user_id") @db.Uuid
+  type           String    @db.VarChar(50)
+  title          String
+  body           String?
+  data           Json      @default("{}")
+  readAt         DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  branch Branch? @relation("Notification_branch", fields: [branchId, organizationId], references: [id, organizationId])
+
+  @@index([organizationId, userId, readAt])
+  @@map("notifications")
+}
+
+/// Append-only (UPDATE/DELETE blocked by trigger).
+model AuditLog {
+  id             BigInt   @id @default(autoincrement())
+  organizationId String?  @map("organization_id") @db.Uuid
+  branchId       String?  @map("branch_id") @db.Uuid
+  actorUserId    String?  @map("actor_user_id") @db.Uuid
+  action         String   @db.VarChar(80) // "auth.login", "role.permissions.updated"
+  entityType     String   @map("entity_type") @db.VarChar(50)
+  entityId       String?  @map("entity_id")
+  before         Json?
+  after          Json?
+  metadata       Json?
+  ip             String?
+  userAgent      String?  @map("user_agent")
+  requestId      String?  @map("request_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorUserId, createdAt])
+  @@map("audit_logs")
+}
+
+model IdempotencyKey {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String            @map("organization_id") @db.Uuid
+  userId         String            @map("user_id") @db.Uuid
+  scope          String            @db.VarChar(80) // "POST /api/v1/invoices/:id/payments"
+  key            String            @db.VarChar(100)
+  requestHash    String            @map("request_hash") @db.VarChar(64)
+  status         IdempotencyStatus @default(IN_PROGRESS)
+  responseStatus Int?              @map("response_status")
+  responseBody   Json?             @map("response_body")
+  createdAt      DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  expiresAt      DateTime          @map("expires_at") @db.Timestamptz(3)
+
+  organization Organization @relation("IdempotencyKey_organization", fields: [organizationId], references: [id])
+
+  @@unique([organizationId, scope, key])
+  @@map("idempotency_keys")
+}
