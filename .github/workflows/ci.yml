@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ros
+          POSTGRES_PASSWORD: ros_dev_password
+          POSTGRES_DB: restaurant_os_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ros" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://ros:ros_dev_password@localhost:5432/restaurant_os_test?schema=public
+      TEST_DATABASE_URL: postgresql://ros:ros_dev_password@localhost:5432/restaurant_os_test?schema=public
+      SHADOW_DATABASE_URL: postgresql://ros:ros_dev_password@localhost:5432/ros_shadow?schema=public
+      JWT_ACCESS_SECRET: ci-only-secret-0123456789abcdef0123456789
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm prisma:generate
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Create shadow database
+        run: PGPASSWORD=ros_dev_password psql -h localhost -U ros -d restaurant_os_test -c 'CREATE DATABASE ros_shadow'
+      - name: Schema drift check (migrations == schema.prisma)
+        run: pnpm db:drift-check
+      - name: Unit tests
+        run: pnpm test
+      - name: Integration tests (real PostgreSQL)
+        run: pnpm test:e2e
+      - name: Build
+        run: pnpm build
+
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f apps/api/Dockerfile -t restaurant-os-api:ci .
