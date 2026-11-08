@@ -34,7 +34,8 @@ export class BranchesService {
   async create(actor: AuthPrincipal, dto: CreateBranchDto, meta: RequestMeta) {
     return this.prisma.$transaction(async (tx) => {
       const branch = await tx.branch.create({ data: { ...dto, organizationId: actor.organizationId } });
-      await tx.branchSettings.create({ data: { branchId: branch.id, organizationId: actor.organizationId } });
+      // Each branch numbers its invoices with its own prefix (invoice numbers are unique per organization).
+      await tx.branchSettings.create({ data: { branchId: branch.id, organizationId: actor.organizationId, invoicePrefix: branch.code.slice(0, 10) } });
       await this.audit.record(
         {
           organizationId: actor.organizationId,

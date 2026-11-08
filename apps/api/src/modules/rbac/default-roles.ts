@@ -65,6 +65,7 @@ export const DEFAULT_ROLES: readonly RoleTemplate[] = [
       'payments.create',
       'refunds.create',
       'refunds.approve',
+      'credit_notes.create',
       'inventory.read',
       'inventory.adjust',
       'inventory.wastage',

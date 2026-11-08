@@ -59,14 +59,41 @@ _Last updated: Phase 2._
 | Concurrency: one open session per table under simultaneous requests; stale-version updates refused | ✅ | tables e2e (6 parallel opens → 1 wins), row locks + partial unique index |
 | Menu and tables isolated per organization/branch | ✅ | menu & tables e2e |
 | Demo seed: sample menu and floor plans for the demo organization | ✅ | `prisma/seed.ts` (`SEED_DEMO=true`) |
-| `BILL_PENDING` table status | 🟡 | Set by checkout in Phase 3 |
+| `BILL_PENDING` table status | ✅ | Set by invoicing in Phase 3 (billing e2e) |
 | Real-time floor plan updates | 🟡 | WebSocket events in Phase 4 |
+
+## Phase 3 – POS, orders, billing and GST invoices
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Dine-in, takeaway and delivery orders with variants, add-ons and notes | ✅ | `test/orders.e2e-spec.ts` |
+| Order state machine enforced by the server (per order type) | ✅ | `order-state.spec.ts`, orders e2e |
+| KOT per kitchen station on confirm; later additions sent as new KOTs | ✅ | orders e2e |
+| Items sent to the kitchen cannot be silently edited; removal needs `orders.cancel` + reason | ✅ | orders e2e |
+| Cancel and reopen with reason and permission | ✅ | orders e2e |
+| Item and order discounts (percentage/fixed) with reason; cashier limit, override permission | ✅ | orders e2e, `engine.spec.ts` |
+| Price override only with permission and reason | ✅ | orders e2e |
+| Billing engine with decimal math: CGST/SGST (intra-state), IGST, inclusive/exclusive pricing, service charge, round-off | ✅ | `engine.spec.ts` (incl. 500 random bills), billing e2e |
+| GST invoice with seller/buyer GSTIN, HSN/SAC, tax summary per rate | ✅ | billing e2e |
+| Consecutive invoice numbers per branch per financial year, no gaps from failed requests | ✅ | `sequences.spec.ts`, billing e2e |
+| Finalized invoices immutable (DB triggers); corrections via credit notes | ✅ | billing e2e |
+| Split and partial payments (cash, card, UPI, wallet…); overpayment refused | ✅ | billing e2e |
+| Refunds against the original payment, with manager approval when needed (no self-approval) | ✅ | billing e2e |
+| Credit notes per line with tax reversal; invoice cancellation | ✅ | billing e2e |
+| Idempotency on order submission, checkout, invoice, payment and refund (incl. simultaneous retries) | ✅ | orders & billing e2e |
+| Concurrency: one payment wins when several race for the same balance; stale order versions refused | ✅ | billing e2e (5 parallel payments), orders e2e |
+| Table becomes BILL_PENDING while money is owed and OCCUPIED once paid | ✅ | billing e2e |
+| Audit log for invoices, payments, refunds, credit notes, discounts, cancels | ✅ | services write `audit_logs`; e2e checks |
+| Orders and invoices isolated per organization/branch | ✅ | orders & billing e2e |
+| Invoice PDF / print | 🟡 | Phase 7 (reports and exports) |
+| Cash payments tied to a cash shift | 🟡 | Phase 6 (cash shifts) |
+| Stock deduction on sale and restock on refund | 🟡 | Phase 5 (inventory) |
+| Live order updates to POS and kitchen screens | 🟡 | Phase 4 (WebSockets) |
 
 ## Later phases
 
 | Phase | Area | Status |
 |---|---|---|
-| 3 | POS, orders & state machine, billing engine, GST, invoices, split/partial payments, refunds, credit notes, idempotency | 🟡 schema ready |
 | 4 | KDS, stations, WebSocket events, reconnect/resync | 🟡 schema ready |
 | 5 | Inventory ledger, recipes/BOM, unit conversion, suppliers, purchase orders, goods receipts | 🟡 schema ready |
 | 6 | Expenses, employees, attendance, cash shifts & reconciliation | 🟡 schema ready |

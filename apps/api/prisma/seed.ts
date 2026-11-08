@@ -55,7 +55,7 @@ async function seedDemo(db: PrismaClient): Promise<void> {
       data: { organizationId: org.id, code: 'MUM-BAN', name: 'Demo Bandra', stateCode: '27', gstin: '27AABCD1234E1Z9', city: 'Mumbai', pincode: '400050' },
     });
     for (const b of [blr, mum]) {
-      await tx.branchSettings.create({ data: { branchId: b.id, organizationId: org.id } });
+      await tx.branchSettings.create({ data: { branchId: b.id, organizationId: org.id, invoicePrefix: b.code } });
       for (const [code, name] of [['MAIN', 'Main Kitchen'], ['BEV', 'Beverage Counter'], ['DESSERT', 'Dessert Counter']]) {
         await tx.kitchenStation.create({ data: { organizationId: org.id, branchId: b.id, code, name } });
       }
