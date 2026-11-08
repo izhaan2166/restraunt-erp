@@ -6,8 +6,9 @@ recipes, purchasing, expenses, staff, cash shifts, reports, and multi-branch man
 
 Built in phases, each implemented and tested before the next. **Done: Phase 1 (architecture,
 schema, authentication, RBAC), Phase 2 (menu, branch pricing, add-ons, combos, tables and
-floor plan) and Phase 3 (orders, KOTs, billing engine, GST invoices, split payments, refunds,
-credit notes).** Next: Phase 4 – kitchen display and realtime updates.
+floor plan), Phase 3 (orders, KOTs, billing engine, GST invoices, split payments, refunds,
+credit notes) and Phase 4 (kitchen display, WebSocket realtime events with safe reconnect).**
+Next: Phase 5 – inventory, recipes, suppliers and purchasing.
 
 | | |
 |---|---|
@@ -20,8 +21,8 @@ credit notes).** Next: Phase 4 – kitchen display and realtime updates.
 ## Stack
 
 NestJS 11 · TypeScript (strict) · PostgreSQL 16 · Prisma 6 · Argon2id · JWT + rotating refresh
-tokens · class-validator · pino · Jest + Supertest · Docker. Coming in later phases: Next.js +
-Tailwind + shadcn/ui, Redis, WebSockets, BullMQ, S3-compatible storage.
+tokens · class-validator · pino · socket.io WebSockets · S3-compatible storage · Jest + Supertest ·
+Docker. Coming in later phases: Next.js + Tailwind + shadcn/ui, Redis, BullMQ.
 
 ## Quick start (local)
 

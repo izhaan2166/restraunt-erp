@@ -47,6 +47,11 @@ const EnvSchema = z
     S3_SECRET_ACCESS_KEY: z.string().optional(),
     S3_FORCE_PATH_STYLE: bool.default('false'),
     S3_PUBLIC_BASE_URL: z.string().url().optional(),
+
+    /** Realtime relay: how often committed events are published, and how long they stay replayable. */
+    REALTIME_ENABLED: bool.default('true'),
+    REALTIME_POLL_MS: z.coerce.number().int().min(20).max(10_000).default(200),
+    REALTIME_RETENTION_HOURS: z.coerce.number().int().positive().default(24),
   })
   .superRefine((e, ctx) => {
     if (e.STORAGE_DRIVER === 's3') {

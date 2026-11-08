@@ -34,7 +34,7 @@ _Last updated: Phase 2._
 | Docker + env example + CI | ✅ | `docker-compose.yml`, `apps/api/Dockerfile`, `.env.example`, `.github/workflows/ci.yml` |
 | Finalized invoices immutable; ledgers append-only (DB level) | ✅ | triggers + integrity tests |
 | Email delivery for password reset | 🟡 | Log transport only; SMTP/SES transport in Phase 8 |
-| Redis-backed rate limit / permission cache | 🟡 | In-memory throttler for now (single instance); Redis in Phase 4 with WebSockets |
+| Redis-backed rate limit / permission cache | 🟡 | In-memory throttler for now; Redis in Phase 8 (realtime fan-out uses PostgreSQL, see architecture §9) |
 
 ## Phase 2 – Menu and tables
 
@@ -60,7 +60,7 @@ _Last updated: Phase 2._
 | Menu and tables isolated per organization/branch | ✅ | menu & tables e2e |
 | Demo seed: sample menu and floor plans for the demo organization | ✅ | `prisma/seed.ts` (`SEED_DEMO=true`) |
 | `BILL_PENDING` table status | ✅ | Set by invoicing in Phase 3 (billing e2e) |
-| Real-time floor plan updates | 🟡 | WebSocket events in Phase 4 |
+| Real-time floor plan updates | ✅ | `table.status.updated` events (Phase 4, realtime e2e) |
 
 ## Phase 3 – POS, orders, billing and GST invoices
 
@@ -88,13 +88,35 @@ _Last updated: Phase 2._
 | Invoice PDF / print | 🟡 | Phase 7 (reports and exports) |
 | Cash payments tied to a cash shift | 🟡 | Phase 6 (cash shifts) |
 | Stock deduction on sale and restock on refund | 🟡 | Phase 5 (inventory) |
-| Live order updates to POS and kitchen screens | 🟡 | Phase 4 (WebSockets) |
+| Live order updates to POS and kitchen screens | ✅ | Phase 4 realtime events |
+
+## Phase 4 – Kitchen display and realtime
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Confirmed orders reach the kitchen as KOTs, one per station (Main, Beverages, Desserts…) | ✅ | `test/kitchen.e2e-spec.ts` |
+| KDS shows table, order number, items, quantities, add-ons, instructions, elapsed time | ✅ | kitchen e2e |
+| Station filter; live board vs. finished tickets; `updatedSince` resync | ✅ | kitchen e2e |
+| Mark items preparing / ready (kitchen), served (kitchen or floor staff); forward only | ✅ | kitchen e2e, `kitchen-state.spec.ts` |
+| One ready item does not make the order ready; order follows its slowest item | ✅ | `kitchen-state.spec.ts`, kitchen e2e |
+| Items added later go out as a new ticket; removed or cancelled items leave the screen | ✅ | kitchen e2e |
+| Simultaneous kitchen taps on one order are serialized (order row lock) | ✅ | kitchen e2e (5 parallel taps → READY once) |
+| Who changed each item is recorded (item + audit log) | ✅ | kitchen e2e |
+| WebSocket connections authenticated (token + live session) | ✅ | `test/realtime.e2e-spec.ts` |
+| Branch and topic authorization for channels | ✅ | realtime e2e |
+| Events: order.created/updated/cancelled, kot.created/updated/item.updated, table.status.updated, payment.completed, refunds | ✅ | realtime e2e |
+| Events written in the same transaction as the change (outbox); rolled-back changes send nothing | ✅ | realtime e2e |
+| Duplicate-safe: unique increasing event ids; repeated changes in one request merged | ✅ | realtime e2e |
+| Safe reconnect: replay on subscribe or `GET /realtime/events`; `RESYNC_REQUIRED` beyond retention | ✅ | realtime e2e |
+| Several API instances: gap-free numbering, every instance delivers | ✅ | realtime e2e (two app instances) |
+| PostgreSQL stays the source of truth (events are notifications; details via REST) | ✅ | design, `docs/architecture.md` §9 |
+| `inventory.low_stock`, `shift.closed` events | 🟡 | Emitted by Phases 5 and 6 |
+| Kitchen and POS screens (frontend) | 🟡 | Next.js frontend |
 
 ## Later phases
 
 | Phase | Area | Status |
 |---|---|---|
-| 4 | KDS, stations, WebSocket events, reconnect/resync | 🟡 schema ready |
 | 5 | Inventory ledger, recipes/BOM, unit conversion, suppliers, purchase orders, goods receipts | 🟡 schema ready |
 | 6 | Expenses, employees, attendance, cash shifts & reconciliation | 🟡 schema ready |
 | 7 | Dashboard, reports, CSV/PDF exports | ⏳ |

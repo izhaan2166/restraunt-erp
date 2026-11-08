@@ -19,6 +19,7 @@ import {
 } from './dto/orders.dto';
 import { EDITABLE_STATUSES, canTransition, isFinal, nextStatuses } from './order-state';
 import { branchBilling, buildItems, insertItems, recomputeOrder } from './order-pricing';
+import { orderProgress, refreshTickets } from '../kitchen/kitchen-state';
 
 type Tx = Prisma.TransactionClient;
 const Dec = Prisma.Decimal;
@@ -51,6 +52,7 @@ export class OrdersService {
       status: q.status?.length ? { in: q.status } : undefined,
       orderType: q.type,
       tableSessionId: q.tableSessionId,
+      updatedAt: q.updatedSince ? { gte: new Date(q.updatedSince) } : undefined,
       createdAt: q.from || q.to ? { gte: q.from ? new Date(q.from) : undefined, lte: q.to ? new Date(q.to) : undefined } : undefined,
       ...(q.search
         ? { OR: [{ orderNumber: { contains: q.search } }, { customerName: { contains: q.search, mode: 'insensitive' } }, { customerPhone: { contains: q.search } }] }
@@ -145,7 +147,11 @@ export class OrdersService {
       if (!EDITABLE_STATUSES.includes(order.status)) throw Errors.unprocessable('ORDER_NOT_EDITABLE', `A ${order.status.toLowerCase()} order cannot be changed`);
       await this.assertNotInvoiced(tx, id);
       const settings = await branchBilling(tx, actor.organizationId, order.branchId);
-      const items = await tx.orderItem.findMany({ where: { orderId: id }, include: { ticketItems: { select: { id: true } } } });
+      const items = await tx.orderItem.findMany({
+        where: { orderId: id },
+        include: { ticketItems: { where: { status: { not: 'CANCELLED' } }, select: { id: true, ticketId: true } } },
+      });
+      const touchedTickets: string[] = [];
       const find = (itemId: string) => {
         const it = items.find((i) => i.id === itemId && i.status === 'ACTIVE');
         if (!it) throw Errors.badRequest('INVALID_ORDER_ITEM', `Item ${itemId} is not an active item of this order`);
@@ -161,7 +167,10 @@ export class OrdersService {
           where: { id: it.id },
           data: { status: 'CANCELLED', kitchenStatus: 'CANCELLED', cancelledAt: new Date(), cancelledById: actor.userId, cancelReason: r.reason.trim() },
         });
-        if (sent) await tx.kitchenTicketItem.updateMany({ where: { orderItemId: it.id }, data: { status: 'CANCELLED', updatedById: actor.userId } });
+        if (sent) {
+          await tx.kitchenTicketItem.updateMany({ where: { orderItemId: it.id }, data: { status: 'CANCELLED', updatedById: actor.userId } });
+          touchedTickets.push(...it.ticketItems.map((t) => t.ticketId));
+        }
       }
       for (const u of dto.updateItems ?? []) {
         const it = find(u.itemId);
@@ -184,6 +193,11 @@ export class OrdersService {
         },
       });
       const { result } = await recomputeOrder(tx, id);
+      if (touchedTickets.length) {
+        await refreshTickets(tx, touchedTickets);
+        // Taking back the last unfinished item can leave everything else ready.
+        await this.syncKitchenProgress(tx, actor, id);
+      }
       await this.audit.record(
         {
           organizationId: actor.organizationId,
@@ -350,8 +364,12 @@ export class OrdersService {
         where: { orderId: id, status: 'ACTIVE' },
         data: { status: 'CANCELLED', kitchenStatus: 'CANCELLED', cancelledAt: now, cancelledById: actor.userId, cancelReason: `Order cancelled: ${reason}` },
       });
-      await tx.kitchenTicketItem.updateMany({ where: { ticket: { orderId: id }, status: { not: 'SERVED' } }, data: { status: 'CANCELLED', updatedById: actor.userId } });
-      await tx.kitchenTicket.updateMany({ where: { orderId: id, status: { notIn: ['SERVED', 'CANCELLED'] } }, data: { status: 'CANCELLED' } });
+      await tx.kitchenTicketItem.updateMany({
+        where: { ticket: { orderId: id }, status: { notIn: ['SERVED', 'CANCELLED'] } },
+        data: { status: 'CANCELLED', updatedById: actor.userId },
+      });
+      const tickets = await tx.kitchenTicket.findMany({ where: { orderId: id, status: { not: 'CANCELLED' } }, select: { id: true } });
+      await refreshTickets(tx, tickets.map((t) => t.id));
       await tx.order.update({
         where: { id },
         data: { status: 'CANCELLED', cancelledAt: now, cancelledById: actor.userId, cancelReason: reason, version: { increment: 1 } },
@@ -382,6 +400,11 @@ export class OrdersService {
           where: { orderId: id, status: 'CANCELLED', cancelledAt: order.cancelledAt, cancelReason: { startsWith: 'Order cancelled: ' } },
           data: { status: 'ACTIVE', kitchenStatus: 'PENDING', cancelledAt: null, cancelledById: null, cancelReason: null },
         });
+        // Items served before the cancellation keep that status; the rest go to the kitchen again (POST /orders/:id/kot).
+        await tx.$executeRaw`
+          UPDATE order_items oi SET kitchen_status = kti.status
+          FROM kitchen_ticket_items kti
+          WHERE kti.order_item_id = oi.id AND kti.status = 'SERVED' AND oi.order_id = ${id}::uuid AND oi.status = 'ACTIVE'`;
       } else {
         const last = await tx.orderStatusHistory.findFirst({ where: { orderId: id, toStatus: 'COMPLETED' }, orderBy: { createdAt: 'desc' } });
         to = last?.fromStatus ?? 'SERVED';
@@ -404,6 +427,31 @@ export class OrdersService {
     if (!COMPLETABLE.includes(order.status) || order.paymentStatus === 'UNPAID' || order.paymentStatus === 'PARTIALLY_PAID') return false;
     await this.setStatus(tx, actor, order, 'COMPLETED', null);
     return true;
+  }
+
+  /**
+   * Moves the order forward as its kitchen items progress (PREPARING once any item is started,
+   * READY once all are ready, SERVED for dine-in once all are served) and completes a dine-in order
+   * whose bill is already settled. Returns the statuses the order went through.
+   */
+  async syncKitchenProgress(tx: Tx, actor: AuthPrincipal, orderId: string): Promise<OrderStatus[]> {
+    const order = await tx.order.findUniqueOrThrow({ where: { id: orderId } });
+    const items = await tx.orderItem.findMany({
+      where: { orderId, status: 'ACTIVE' },
+      select: { kitchenStatus: true, ticketItems: { where: { status: { not: 'CANCELLED' } }, select: { id: true } } },
+    });
+    const steps = orderProgress(
+      order.orderType,
+      order.status,
+      items.map((i) => ({ sent: i.ticketItems.length > 0, status: i.kitchenStatus })),
+    );
+    let at = order;
+    for (const to of steps) {
+      await this.setStatus(tx, actor, at, to, null);
+      at = { ...at, status: to };
+    }
+    if (steps.length && (await this.completeIfSettled(tx, actor, orderId))) steps.push('COMPLETED');
+    return steps;
   }
 
   // ───────────── Internals ─────────────
@@ -451,7 +499,7 @@ export class OrdersService {
   /** One kitchen ticket per station for active items not yet sent. */
   private async createKots(tx: Tx, actor: AuthPrincipal, order: { id: string; organizationId: string; branchId: string }) {
     const pending = await tx.orderItem.findMany({
-      where: { orderId: order.id, status: 'ACTIVE', ticketItems: { none: {} } },
+      where: { orderId: order.id, status: 'ACTIVE', kitchenStatus: { not: 'SERVED' }, ticketItems: { none: { status: { not: 'CANCELLED' } } } },
       orderBy: { createdAt: 'asc' },
     });
     if (!pending.length) return [];

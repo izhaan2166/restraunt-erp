@@ -25,6 +25,8 @@ import { TablesModule } from './modules/tables/tables.module';
 import { TaxesModule } from './modules/taxes/taxes.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { BillingModule } from './modules/billing/billing.module';
+import { KitchenModule } from './modules/kitchen/kitchen.module';
+import { RealtimeModule } from './modules/realtime/realtime.module';
 import { IdempotencyModule } from './common/idempotency/idempotency';
 import { Global } from '@nestjs/common';
 import { AUTH_THROTTLE } from './common/decorators/auth.decorators';
@@ -84,6 +86,8 @@ const env = loadEnv();
     IdempotencyModule,
     OrdersModule,
     BillingModule,
+    KitchenModule,
+    RealtimeModule,
   ],
   controllers: [HealthController],
   providers: [

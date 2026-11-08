@@ -47,6 +47,9 @@ describe('default role matrix', () => {
   it('keeps each front-of-house role to its job', () => {
     const waiter = perms('WAITER');
     expect(waiter.has('kot.submit')).toBe(true);
+    // Waiters watch the kitchen screen to pick up ready food, but do not run it.
+    expect(waiter.has('kot.read')).toBe(true);
+    expect(waiter.has('kot.update_status')).toBe(false);
     expect(waiter.has('payments.create')).toBe(false);
     expect(waiter.has('billing.discount.apply')).toBe(false);
 

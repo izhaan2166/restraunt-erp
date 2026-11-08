@@ -136,4 +136,8 @@ export class ListOrdersQuery extends PaginationQuery {
   @ApiPropertyOptional() @IsOptional() @IsDateString() from?: string;
   @ApiPropertyOptional() @IsOptional() @IsDateString() to?: string;
   @ApiPropertyOptional() @IsOptional() @IsUUID() tableSessionId?: string;
+  @ApiPropertyOptional({ description: 'Only orders changed at or after this time (resync after a reconnect)' })
+  @IsOptional()
+  @IsDateString()
+  updatedSince?: string;
 }
