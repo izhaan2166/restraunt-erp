@@ -11,3 +11,7 @@ process.env.CORS_ORIGINS = 'http://localhost:3000';
 process.env.SWAGGER_ENABLED = 'false';
 process.env.STORAGE_DRIVER = 'local';
 process.env.UPLOAD_DIR = require('node:path').join(require('node:os').tmpdir(), `ros-test-uploads-${process.pid}`);
+process.env.PRIVATE_UPLOAD_DIR = require('node:path').join(require('node:os').tmpdir(), `ros-test-private-${process.pid}`);
+process.env.METRICS_TOKEN = 'test-metrics-token-0123456789abcdef';
+// CI provides Redis, so the whole e2e suite runs with shared (Redis) rate-limit counters.
+if (process.env.TEST_REDIS_URL) process.env.REDIS_URL = process.env.TEST_REDIS_URL;

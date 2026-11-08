@@ -11,7 +11,7 @@ import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/principal';
 import { lockOpenSession, lockSession, postCash } from '../cash/drawer';
 import { sniffReceipt } from '../storage/image-validation';
-import { StorageService } from '../storage/storage.service';
+import { PrivateFile, StorageService } from '../storage/storage.service';
 import {
   CreateExpenseDto,
   ExpenseCategoryDto,
@@ -35,6 +35,15 @@ const INCLUDE = {
   category: { select: { id: true, name: true } },
   employee: { select: { id: true, fullName: true, employeeCode: true } },
 } satisfies Prisma.ExpenseInclude;
+/** The storage key stays on the server; clients fetch the file through `receiptUrl`. */
+const OMIT = { receiptKey: true } satisfies Prisma.ExpenseOmit;
+const CONTENT_TYPES: Record<string, string> = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' };
+
+export interface ReceiptFile {
+  file: PrivateFile;
+  contentType: string;
+  filename: string;
+}
 
 @Injectable()
 export class ExpensesService {
@@ -109,6 +118,7 @@ export class ExpensesService {
           createdById: actor.userId,
         },
         include: INCLUDE,
+        omit: OMIT,
       });
       await this.log(tx, actor, dto.branchId, 'expense.created', 'expense', e.id, undefined, this.snapshot(e), meta);
       return e;
@@ -127,14 +137,14 @@ export class ExpensesService {
       ...(q.search ? { OR: [{ description: { contains: q.search, mode: 'insensitive' } }, { paidTo: { contains: q.search, mode: 'insensitive' } }] } : {}),
     };
     const [rows, total] = await Promise.all([
-      this.prisma.expense.findMany({ where, include: INCLUDE, orderBy: [{ expenseDate: q.order }, { createdAt: q.order }], skip: q.skip, take: q.pageSize }),
+      this.prisma.expense.findMany({ where, include: INCLUDE, omit: OMIT, orderBy: [{ expenseDate: q.order }, { createdAt: q.order }], skip: q.skip, take: q.pageSize }),
       this.prisma.expense.count({ where }),
     ]);
     return new Paginated(rows, total, q);
   }
 
   async get(actor: AuthPrincipal, id: string) {
-    const e = await this.prisma.expense.findFirst({ where: { id, organizationId: actor.organizationId }, include: INCLUDE });
+    const e = await this.prisma.expense.findFirst({ where: { id, organizationId: actor.organizationId }, include: INCLUDE, omit: OMIT });
     if (!e) throw Errors.notFound('Expense');
     requireInBranch(actor, e.branchId, ['expenses.read'], 'Expense');
     return e;
@@ -183,6 +193,7 @@ export class ExpensesService {
           updatedById: actor.userId,
         },
         include: INCLUDE,
+        omit: OMIT,
       });
       await this.log(tx, actor, after.branchId, 'expense.updated', 'expense', id, this.snapshot(before), { ...this.snapshot(after), reason: dto.reason.trim() }, meta);
       return after;
@@ -210,13 +221,30 @@ export class ExpensesService {
     if (!file?.buffer?.length) throw Errors.badRequest('FILE_REQUIRED', 'Attach the receipt as multipart field "receipt"');
     const type = sniffReceipt(file.buffer);
     if (!type) throw Errors.unprocessable('UNSUPPORTED_FILE', 'Receipts must be JPEG, PNG, WebP or PDF');
-    // Random, unguessable key: receipts are financial documents.
-    const receiptUrl = await this.storage.put(`${actor.organizationId}/receipts/${randomUUID()}.${type.ext}`, file.buffer, type.contentType);
+    // Random, unguessable key in private storage: receipts are financial documents.
+    const receiptKey = `${actor.organizationId}/receipts/${randomUUID()}.${type.ext}`;
+    await this.storage.putPrivate(receiptKey, file.buffer, type.contentType);
+    const receiptUrl = `/api/v1/expenses/${id}/receipt`;
     return this.prisma.$transaction(async (tx) => {
-      const after = await tx.expense.update({ where: { id }, data: { receiptUrl, updatedById: actor.userId }, include: INCLUDE });
-      await this.log(tx, actor, e.branchId, 'expense.receipt_uploaded', 'expense', id, { receiptUrl: e.receiptUrl }, { receiptUrl, bytes: file.buffer.length, contentType: type.contentType }, meta);
+      const prev = await tx.expense.findUniqueOrThrow({ where: { id }, select: { receiptKey: true } });
+      const after = await tx.expense.update({ where: { id }, data: { receiptUrl, receiptKey, updatedById: actor.userId }, include: INCLUDE, omit: OMIT });
+      await this.log(tx, actor, e.branchId, 'expense.receipt_uploaded', 'expense', id, { receiptKey: prev.receiptKey }, { receiptKey, bytes: file.buffer.length, contentType: type.contentType }, meta);
       return after;
     });
+  }
+
+  /** The receipt file, for anyone who may read the expense (deleted expenses included, for audits). */
+  async receipt(actor: AuthPrincipal, id: string): Promise<ReceiptFile> {
+    await this.get(actor, id);
+    const { receiptKey } = await this.prisma.expense.findUniqueOrThrow({ where: { id }, select: { receiptKey: true } });
+    if (!receiptKey) throw Errors.notFound('Receipt');
+    const ext = receiptKey.slice(receiptKey.lastIndexOf('.') + 1).toLowerCase();
+    try {
+      return { file: await this.storage.getPrivate(receiptKey), contentType: CONTENT_TYPES[ext] ?? 'application/octet-stream', filename: `receipt-${id}.${ext}` };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') throw Errors.notFound('Receipt');
+      throw err;
+    }
   }
 
   /** Totals for a period by category and by payment method (deleted expenses excluded). */
@@ -257,7 +285,7 @@ export class ExpensesService {
     return d;
   }
 
-  private snapshot(e: Expense) {
+  private snapshot(e: Omit<Expense, 'receiptKey'>) {
     return {
       categoryId: e.categoryId,
       amount: e.amount,

@@ -1,0 +1,23 @@
+# Caddy gets and renews the TLS certificate for API_DOMAIN automatically (Let's Encrypt).
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# The metrics endpoint is for Prometheus on the private network only.
+	@metrics path /api/v1/metrics*
+	respond @metrics 404
+
+	reverse_proxy api:4000 {
+		header_up X-Forwarded-Proto {scheme}
+		health_uri /api/v1/health/live
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

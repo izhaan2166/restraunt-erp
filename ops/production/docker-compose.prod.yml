@@ -1,0 +1,86 @@
+# Production stack on one server: Caddy (automatic HTTPS) → API, with PostgreSQL and Redis on a
+# private network. See docs/deployment.md. Run from the repository root:
+#   docker compose -f ops/production/docker-compose.prod.yml --env-file .env.production up -d --build
+name: restaurant-os
+
+services:
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env.production}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [edge]
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ros
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: restaurant_os
+    # Not published to the host: only the API and the backup job can reach it.
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ros -d restaurant_os"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks: [backend]
+
+  migrate:
+    build: { context: ../.., dockerfile: apps/api/Dockerfile }
+    env_file: ../../.env.production
+    environment:
+      DATABASE_URL: postgresql://ros:${POSTGRES_PASSWORD}@postgres:5432/restaurant_os?schema=public
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist-seed/prisma/seed.js"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+    networks: [backend]
+
+  api:
+    build: { context: ../.., dockerfile: apps/api/Dockerfile }
+    restart: unless-stopped
+    env_file: ../../.env.production
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://ros:${POSTGRES_PASSWORD}@postgres:5432/restaurant_os?schema=public
+      REDIS_URL: redis://redis:6379
+      TRUST_PROXY: "true"
+    volumes:
+      - uploads:/app/uploads
+      - uploads_private:/app/uploads-private
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    networks: [edge, backend]
+
+volumes:
+  pgdata:
+  uploads:
+  uploads_private:
+  caddy_data:
+  caddy_config:
+
+networks:
+  edge:
+  backend:
+    internal: true

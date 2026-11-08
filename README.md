@@ -10,9 +10,10 @@ floor plan), Phase 3 (orders, KOTs, billing engine, GST invoices, split payments
 credit notes), Phase 4 (kitchen display, WebSocket realtime events with safe reconnect), Phase 5
 (inventory, recipes with automatic stock deduction, suppliers, purchase orders, goods receipts,
 supplier bills and payments), Phase 6 (expenses with receipts, employees, attendance, cash
-shifts with reconciliation) and Phase 7 (dashboard, sales/GST/stock/profit/staff reports, CSV and
-PDF exports, invoice PDF).** Next: Phase 8 – security hardening, load tests, monitoring and
-deployment.
+shifts with reconciliation), Phase 7 (dashboard, sales/GST/stock/profit/staff reports, CSV and
+PDF exports, invoice PDF) and Phase 8 (security hardening, Redis rate limits, SMTP email, private
+receipts, Prometheus metrics and alerts, end-to-end and load tests, production deployment with
+HTTPS, backups and restore, admin and user guides).** Next: the Next.js frontend.
 
 | | |
 |---|---|
@@ -23,13 +24,19 @@ deployment.
 | Inventory & purchasing rules | [docs/inventory.md](docs/inventory.md) |
 | Cash, expenses & staff rules | [docs/cash-and-staff.md](docs/cash-and-staff.md) |
 | Reports & dashboard definitions | [docs/reports.md](docs/reports.md) |
+| Deployment (HTTPS, one server or cloud) | [docs/deployment.md](docs/deployment.md) |
+| Backups & restore | [docs/backup-restore.md](docs/backup-restore.md) |
+| Monitoring, alerts & runbooks | [docs/monitoring.md](docs/monitoring.md) |
+| Security | [docs/security.md](docs/security.md) |
+| Performance & load test | [docs/performance.md](docs/performance.md) |
+| Admin guide · User guide | [docs/admin-guide.md](docs/admin-guide.md) · [docs/user-guide.md](docs/user-guide.md) |
 | Progress | [docs/requirements-checklist.md](docs/requirements-checklist.md) |
 
 ## Stack
 
 NestJS 11 · TypeScript (strict) · PostgreSQL 16 · Prisma 6 · Argon2id · JWT + rotating refresh
 tokens · class-validator · pino · socket.io WebSockets · S3-compatible storage · Jest + Supertest ·
-Docker. Coming in later phases: Next.js + Tailwind + shadcn/ui, Redis, BullMQ.
+Redis (shared rate limits) · prom-client · Docker + Caddy. Coming next: Next.js + Tailwind + shadcn/ui.
 
 ## Quick start (local)
 
@@ -72,6 +79,8 @@ cd apps/api
 pnpm test        # unit tests
 pnpm test:e2e    # integration tests against a real PostgreSQL (TEST_DATABASE_URL,
                  # default postgresql://ros:ros_dev_password@localhost:5432/restaurant_os_test)
+                 # set TEST_REDIS_URL=redis://localhost:6379/15 to run them on Redis too
+pnpm load-test   # load test with latency percentiles (docs/performance.md)
 ```
 
 Integration tests run the real HTTP stack (guards, validation, error filter) against a migrated
@@ -80,6 +89,7 @@ database and assert on database state, not only on responses.
 ## Project layout
 
 ```
-apps/api     NestJS API: prisma/ (schema, migrations, seed), src/ (modules), test/ (e2e)
-docs/        architecture, database, API contracts, requirements checklist, openapi.json
+apps/api     NestJS API: prisma/ (schema, migrations, seed), src/ (modules), test/ (e2e, load)
+ops/         production compose + Caddy, backup/restore scripts, Prometheus config and alerts
+docs/        architecture, database, API contracts, operations guides, checklist, openapi.json
 ```

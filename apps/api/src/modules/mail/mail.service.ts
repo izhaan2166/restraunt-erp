@@ -12,7 +12,7 @@ export abstract class MailService {
 
 /**
  * Development transport: writes the message to the application log.
- * An SMTP/SES transport is planned with the notifications module (Phase 8).
+ * Production uses SmtpMailService (MAIL_TRANSPORT=smtp).
  */
 @Injectable()
 export class LogMailService extends MailService {

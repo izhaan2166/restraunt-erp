@@ -1,17 +1,9 @@
 import { Prisma } from '@prisma/client';
-import { API, TestContext, createTestApp } from './helpers/app';
+import { API, TestContext, binary, createTestApp } from './helpers/app';
 import { OrgFixture, bearer, createOrg, openShift, tokenFor } from './helpers/fixtures';
 import { MenuFixture, key, seedMenu } from './helpers/menu';
 
 const istDate = (daysAgo = 0) => new Date(Date.now() + 5.5 * 3600_000 - daysAgo * 86_400_000).toISOString().slice(0, 10);
-/** Collects a binary response body (PDF) into a Buffer. */
-function binary(res: unknown, cb: (err: Error | null, body: Buffer) => void) {
-  const stream = res as NodeJS.ReadableStream;
-  const chunks: Buffer[] = [];
-  stream.on('data', (c: Buffer) => chunks.push(Buffer.from(c)));
-  stream.on('end', () => cb(null, Buffer.concat(chunks)));
-}
-
 /**
  * Builds a real day of trade in branch A (and a little in branch B) through the API, then checks
  * that every report and the dashboard agree with each other and with the database.

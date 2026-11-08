@@ -33,12 +33,20 @@ const EnvSchema = z
     AUTH_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(10),
 
     APP_PUBLIC_URL: z.string().url().default('http://localhost:3000'),
-    MAIL_TRANSPORT: z.enum(['log', 'memory']).default('log'),
+    MAIL_TRANSPORT: z.enum(['log', 'memory', 'smtp']).default('log'),
+    /** smtp(s)://user:pass@host:port — any provider (SES SMTP, SendGrid, Zoho, Gmail Workspace…). */
+    SMTP_URL: z.string().url().optional(),
+    MAIL_FROM: z.string().default('RestaurantOS <no-reply@localhost>'),
+    /** Bearer token for GET /api/v1/metrics (Prometheus). Unset: the endpoint is off. */
+    METRICS_TOKEN: z.string().min(24, 'METRICS_TOKEN must be at least 24 characters').optional(),
     SWAGGER_ENABLED: bool.optional(),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
 
     STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
     UPLOAD_DIR: z.string().default('./uploads'),
+    /** Receipts and other private documents (local driver); never served as static files. */
+    PRIVATE_UPLOAD_DIR: z.string().default('./uploads-private'),
+    S3_PRESIGN_SECONDS: z.coerce.number().int().min(30).max(3600).default(300),
     UPLOAD_MAX_IMAGE_BYTES: z.coerce.number().int().positive().default(2 * 1024 * 1024),
     UPLOAD_MAX_RECEIPT_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
     S3_BUCKET: z.string().optional(),
@@ -55,6 +63,22 @@ const EnvSchema = z
     REALTIME_RETENTION_HOURS: z.coerce.number().int().positive().default(24),
   })
   .superRefine((e, ctx) => {
+    const issue = (path: string, message: string) => ctx.addIssue({ code: z.ZodIssueCode.custom, path: [path], message });
+    if (e.MAIL_TRANSPORT === 'smtp' && !e.SMTP_URL) issue('SMTP_URL', 'SMTP_URL is required when MAIL_TRANSPORT=smtp');
+    if (e.NODE_ENV === 'production') {
+      // Settings that are fine on a laptop but unsafe (or silently broken) on a live system.
+      if (e.MAIL_TRANSPORT === 'memory') issue('MAIL_TRANSPORT', 'The memory mail transport cannot be used in production');
+      if (e.COOKIE_SECURE === false) issue('COOKIE_SECURE', 'Cookies must be Secure in production (serve the API over HTTPS)');
+      for (const o of e.CORS_ORIGINS) {
+        if (o === '*' || !/^https:\/\//.test(o) || /\/\/(localhost|127\.0\.0\.1)(:|$)/.test(o)) {
+          issue('CORS_ORIGINS', `CORS origin "${o}" is not allowed in production; list your https:// app domains`);
+        }
+      }
+      if (!e.APP_PUBLIC_URL.startsWith('https://')) issue('APP_PUBLIC_URL', 'APP_PUBLIC_URL must be https:// in production');
+      if (/^(test|dev|change|secret)/i.test(e.JWT_ACCESS_SECRET) || new Set(e.JWT_ACCESS_SECRET).size < 10) {
+        issue('JWT_ACCESS_SECRET', 'JWT_ACCESS_SECRET looks like a placeholder; generate one with `openssl rand -base64 48`');
+      }
+    }
     if (e.STORAGE_DRIVER === 's3') {
       for (const key of ['S3_BUCKET', 'S3_PUBLIC_BASE_URL'] as const) {
         if (!e[key]) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when STORAGE_DRIVER=s3` });

@@ -8,3 +8,5 @@ coverage/
 .DS_Store
 dist-seed/
 uploads/
+uploads-private/
+dump.rdb

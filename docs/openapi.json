@@ -4542,7 +4542,7 @@
             "name": "branchId",
             "required": false,
             "in": "query",
-            "description": "Show the estimated cost with this branch\u2019s average costs",
+            "description": "Show the estimated cost with this branch’s average costs",
             "schema": {
               "type": "string"
             }
@@ -4622,7 +4622,7 @@
             "name": "branchId",
             "required": false,
             "in": "query",
-            "description": "Show the estimated cost with this branch\u2019s average costs",
+            "description": "Show the estimated cost with this branch’s average costs",
             "schema": {
               "type": "string"
             }
@@ -6567,6 +6567,32 @@
         "tags": [
           "expenses"
         ]
+      },
+      "get": {
+        "operationId": "ExpensesController_receipt_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "expenses"
+        ]
       }
     },
     "/api/v1/dashboard": {
@@ -8281,7 +8307,7 @@
           },
           "name": {
             "type": "string",
-            "example": "Spice Route \u2013 Indiranagar"
+            "example": "Spice Route – Indiranagar"
           },
           "stateCode": {
             "type": "string",
@@ -8320,7 +8346,7 @@
           },
           "name": {
             "type": "string",
-            "example": "Spice Route \u2013 Indiranagar"
+            "example": "Spice Route – Indiranagar"
           },
           "stateCode": {
             "type": "string",
@@ -8429,7 +8455,7 @@
           },
           "password": {
             "type": "string",
-            "description": "Initial password (10\u2013128 chars, letters and digits)"
+            "description": "Initial password (10–128 chars, letters and digits)"
           },
           "roles": {
             "type": "array",

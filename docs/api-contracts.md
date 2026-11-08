@@ -318,7 +318,8 @@ notification.
 | POST | /expenses | `expenses.create` (branch) **Idem.** | `{ branchId, categoryId, amount (GST included), taxAmount?, description, expenseDate, paymentMethod, paidTo?, employeeId?, fromCashDrawer? }`. `fromCashDrawer` takes the cash out of your open shift (`DRAWER_NEEDS_CASH`, `NO_OPEN_SHIFT`, `INSUFFICIENT_CASH`) |
 | PATCH | /expenses/:id | `expenses.update` | Any field above plus a required `reason`. Changing a drawer expense's amount moves the difference through the drawer while the shift is open (`SHIFT_CLOSED` after) |
 | DELETE | /expenses/:id | `expenses.delete` | `{ reason }` → 204. Soft delete; drawer cash is put back while the shift is open |
-| POST | /expenses/:id/receipt | creator with `expenses.create`, or `expenses.update` | multipart field `receipt`: PDF, JPEG, PNG or WebP up to `UPLOAD_MAX_RECEIPT_BYTES` (5 MB). `UNSUPPORTED_FILE`, `FILE_REQUIRED` |
+| POST | /expenses/:id/receipt | creator with `expenses.create`, or `expenses.update` | multipart field `receipt`: PDF, JPEG, PNG or WebP up to `UPLOAD_MAX_RECEIPT_BYTES` (5 MB). `UNSUPPORTED_FILE`, `FILE_REQUIRED`. The expense's `receiptUrl` becomes `/api/v1/expenses/:id/receipt` |
+| GET | /expenses/:id/receipt | `expenses.read` (expense's branch) | The receipt file (local storage) or `302` to a signed S3 link valid `S3_PRESIGN_SECONDS`; `Cache-Control: private, no-store`. No receipt → 404 |
 
 Default roles: managers and accountants record expenses, accountants (and owners) edit them, only
 owners delete them.
@@ -383,3 +384,16 @@ Lists of individual records stop at 5000 rows (`truncated: [table…]`).
 | GET | /invoices/:id/pdf | `invoices.read` | The GST tax invoice as `application/pdf` |
 
 Phase 7 error codes: `RANGE_TOO_LONG`, `RANGE_REQUIRED`, `INVALID_RANGE`.
+
+## Implemented in Phase 8
+
+| Method | Path | Access | Notes |
+|---|---|---|---|
+| GET | /health/live | public | `{ status: 'ok' }` |
+| GET | /health/ready | public | `{ status: 'ok'\|'degraded'\|'unavailable', database: 'up'\|'down', redis: 'up'\|'down'\|'not_configured' }`; 503 only when the database is down |
+| GET | /metrics | `Authorization: Bearer <METRICS_TOKEN>` | Prometheus text format (not the JSON envelope). 404 when `METRICS_TOKEN` is unset, 401 with a wrong token. Not in Swagger |
+| GET | /expenses/:id/receipt | `expenses.read` | See Phase 6 table |
+
+Behaviour changes: `POST /auth/forgot-password` sends the email in the background (same response
+whether or not it is delivered); rate limits are shared across instances when `REDIS_URL` is set.
+

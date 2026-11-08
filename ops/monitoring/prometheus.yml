@@ -1,0 +1,18 @@
+# Minimal Prometheus config for RestaurantOS. Put the scrape token in a file next to this one
+# (metrics-token, same value as the API's METRICS_TOKEN). See docs/monitoring.md.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+
+rule_files:
+  - alerts.yml
+
+scrape_configs:
+  - job_name: restaurant-os-api
+    metrics_path: /api/v1/metrics
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics-token
+    static_configs:
+      # One target per API instance, reached on the private network (not through the public proxy).
+      - targets: ["api:4000"]

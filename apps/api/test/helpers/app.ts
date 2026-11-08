@@ -32,3 +32,11 @@ export async function createTestApp(): Promise<TestContext> {
 }
 
 export const API = '/api/v1';
+
+/** supertest parser that keeps a binary response (PDF, image) as a Buffer. */
+export function binary(res: unknown, cb: (err: Error | null, body: Buffer) => void) {
+  const stream = res as NodeJS.ReadableStream;
+  const chunks: Buffer[] = [];
+  stream.on('data', (c: Buffer) => chunks.push(Buffer.from(c)));
+  stream.on('end', () => cb(null, Buffer.concat(chunks)));
+}
