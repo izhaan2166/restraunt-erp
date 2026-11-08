@@ -10,6 +10,7 @@ import type { AuthPrincipal } from '../auth/principal';
 import { branchBilling, recomputeOrder } from '../orders/order-pricing';
 import { OrdersService } from '../orders/orders.service';
 import { financialYear, nextNumber } from '../sequences/sequences';
+import { drawerForCash, postCash } from '../cash/drawer';
 import { restockForRefund } from '../inventory/stock';
 import {
   BuyerDto,
@@ -251,6 +252,8 @@ export class BillingService {
         outstanding: s.outstanding.toFixed(2),
       });
     }
+    // Cash goes into the receiver's drawer (their open cash shift).
+    const drawer = dto.method === 'CASH' ? await drawerForCash(tx, inv.branchId, [actor.userId]) : null;
     const payment = await tx.payment.create({
       data: {
         organizationId: actor.organizationId,
@@ -261,9 +264,13 @@ export class BillingService {
         reference: dto.reference?.trim() || null,
         idempotencyKey,
         receivedById: actor.userId,
+        cashSessionId: drawer?.id ?? null,
         allocations: { create: { invoiceId, amount } },
       },
     });
+    if (drawer) {
+      await postCash(tx, drawer, { type: 'CASH_SALE', amount, referenceType: 'payment', referenceId: payment.id, note: inv.invoiceNumber, userId: actor.userId });
+    }
     await tx.invoice.update({ where: { id: invoiceId }, data: { paidAmount: { increment: amount } } });
     const after = await syncSettlement(tx, invoiceId);
     const completed = await this.orders.completeIfSettled(tx, actor, inv.orderId);
@@ -383,6 +390,14 @@ export class BillingService {
   }
 
   private async applyRefund(tx: Tx, actor: AuthPrincipal, refund: Refund) {
+    if (refund.method === 'CASH') {
+      // Paid out of the requester's drawer if they have one open, otherwise the approver's.
+      const drawer = await drawerForCash(tx, refund.branchId, [refund.processedById, actor.userId]);
+      if (drawer) {
+        await postCash(tx, drawer, { type: 'CASH_REFUND', amount: refund.amount.neg(), referenceType: 'refund', referenceId: refund.id, note: refund.reason, userId: actor.userId });
+        await tx.refund.update({ where: { id: refund.id }, data: { cashSessionId: drawer.id } });
+      }
+    }
     await tx.invoice.update({ where: { id: refund.invoiceId }, data: { refundedAmount: { increment: refund.amount } } });
     await syncSettlement(tx, refund.invoiceId);
     await restockForRefund(tx, actor.userId, refund);

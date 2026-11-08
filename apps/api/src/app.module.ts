@@ -29,6 +29,9 @@ import { KitchenModule } from './modules/kitchen/kitchen.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { PurchasingModule } from './modules/purchasing/purchasing.module';
+import { CashModule } from './modules/cash/cash.module';
+import { ExpensesModule } from './modules/expenses/expenses.module';
+import { EmployeesModule } from './modules/employees/employees.module';
 import { IdempotencyModule } from './common/idempotency/idempotency';
 import { Global } from '@nestjs/common';
 import { AUTH_THROTTLE } from './common/decorators/auth.decorators';
@@ -92,6 +95,9 @@ const env = loadEnv();
     RealtimeModule,
     InventoryModule,
     PurchasingModule,
+    CashModule,
+    ExpensesModule,
+    EmployeesModule,
   ],
   controllers: [HealthController],
   providers: [

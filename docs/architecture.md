@@ -99,9 +99,9 @@ authorization policy on every route, and tests. Controllers only translate HTTP 
 | notifications / realtime | 4 ✅ | notifications | WebSocket gateway, event outbox |
 | inventory, recipes, stock movements | 5 ✅ | units, ingredients, inventory_balances, stock_movements, stock_adjustments, wastage_records, recipes, recipe_items | Ingredient ledger, BOM deduction |
 | suppliers, purchase orders | 5 ✅ | suppliers, purchase_orders, purchase_order_items, goods_receipts, goods_receipt_items, supplier_invoices, supplier_payments | Purchasing and receiving |
-| expenses | 6 | expense_categories, expenses | Expense records |
-| employees, attendance | 6 | employees, attendance, employee_shifts | Staff profiles, attendance |
-| shifts (cash) | 6 | cash_sessions, cash_movements | Drawer open/close and reconciliation |
+| expenses | 6 ✅ | expense_categories, expenses | Expense records |
+| employees, attendance | 6 ✅ | employees, attendance, employee_shifts | Staff profiles, attendance |
+| shifts (cash) | 6 ✅ | cash_sessions, cash_movements | Drawer open/close and reconciliation |
 | reports | 7 | (read models) | Sales, GST, P&L, inventory, exports |
 | idempotency | 3 ✅ | idempotency_keys | Replay-safe POSTs |
 
@@ -269,6 +269,22 @@ sequenceDiagram
   through the realtime outbox only when the minimum level is crossed, and writes a notification.
 
 Rules in plain words: [inventory.md](inventory.md).
+
+## 9b. Cash, expenses and staff (Phase 6)
+
+- **Drawer ledger.** Every rupee in or out of a drawer is a row in `cash_movements` (append-only),
+  signed by type (a check constraint). The expected cash is the sum of the shift's movements.
+  Payments, refunds and drawer expenses post their movement in the same transaction as the
+  business record, after locking the shift row, so a drawer cannot go negative under parallel use.
+- **Final shifts.** Triggers refuse new movements on a shift that is not open and any change to a
+  closed shift. The close trigger emits `shift.closed` on the `shifts` topic and writes a
+  `shift.discrepancy` notification when the count differs.
+- **Expenses** are soft-deleted with a reason; every change is in `audit_logs`, which the history
+  endpoint reads back.
+- **Attendance** uses India dates; a partial unique index keeps one open clock-in per employee and
+  the employee row is locked during clock-in/out.
+
+Rules in plain words: [cash-and-staff.md](cash-and-staff.md).
 
 ## 10. Errors, logging and observability
 

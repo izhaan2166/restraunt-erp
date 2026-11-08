@@ -2,7 +2,7 @@
 
 Status: ✅ done and tested · 🟡 designed (schema/contract in place), behaviour in a later phase · ⏳ not started · ❌ failing
 
-_Last updated: Phase 2._
+_Last updated: Phase 6._
 
 ## Phase 1 – Architecture, schema, authentication, RBAC
 
@@ -86,7 +86,7 @@ _Last updated: Phase 2._
 | Audit log for invoices, payments, refunds, credit notes, discounts, cancels | ✅ | services write `audit_logs`; e2e checks |
 | Orders and invoices isolated per organization/branch | ✅ | orders & billing e2e |
 | Invoice PDF / print | 🟡 | Phase 7 (reports and exports) |
-| Cash payments tied to a cash shift | 🟡 | Phase 6 (cash shifts) |
+| Cash payments tied to a cash shift | ✅ | Phase 6, `test/cash.e2e-spec.ts` |
 | Stock deduction on sale and restock on refund | ✅ | Phase 5, `test/inventory.e2e-spec.ts` |
 | Live order updates to POS and kitchen screens | ✅ | Phase 4 realtime events |
 
@@ -111,7 +111,7 @@ _Last updated: Phase 2._
 | Several API instances: gap-free numbering, every instance delivers | ✅ | realtime e2e (two app instances) |
 | PostgreSQL stays the source of truth (events are notifications; details via REST) | ✅ | design, `docs/architecture.md` §9 |
 | `inventory.low_stock` event | ✅ | Phase 5 inventory e2e |
-| `shift.closed` event | 🟡 | Phase 6 |
+| `shift.closed` event | ✅ | Phase 6 cash e2e |
 | Kitchen and POS screens (frontend) | 🟡 | Next.js frontend |
 
 ## Phase 5 – Inventory, recipes, suppliers and purchasing
@@ -143,11 +143,38 @@ _Last updated: Phase 2._
 | Inventory and purchase reports | 🟡 | Phase 7 |
 | Inventory screens (frontend) | 🟡 | Next.js frontend |
 
+## Phase 6 – Expenses, employees, attendance and cash shifts
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Open a shift with an opening balance; one open drawer per cashier | ✅ | `test/cash.e2e-spec.ts` (parallel opens → one wins) |
+| Cash additions and withdrawals with reasons; drawer cannot go below zero | ✅ | cash e2e |
+| Cash sales and cash refunds flow into the right drawer automatically | ✅ | cash e2e, billing e2e |
+| Cash payments need an open shift (branch setting can turn this off) | ✅ | cash e2e |
+| Close with counted cash: expected vs actual, discrepancy, note required for a difference | ✅ | cash e2e |
+| A closed shift can never be changed (database trigger); movements are append-only | ✅ | cash e2e |
+| Shift report (cash breakdown, payments and refunds by method) and employee-wise summary | ✅ | cash e2e |
+| Realtime `shift.opened` / `shift.closed`; notification for shortage or overage | ✅ | cash e2e |
+| Daily expenses with categories, GST, payment methods, paid-to, employee expenses | ✅ | `test/expenses.e2e-spec.ts` |
+| Expenses paid from the cash drawer (and corrected or returned when edited/deleted) | ✅ | expenses e2e |
+| Receipt uploads (PDF or image, content checked) | ✅ | expenses e2e |
+| Only authorized users edit or delete; reason required; full change history kept | ✅ | expenses e2e |
+| Expense report by category and payment method | ✅ | expenses e2e |
+| Employee profiles linked to login accounts, roles and branches; salary hidden from non-managers | ✅ | `test/employees.e2e-spec.ts` |
+| Clock in / clock out once a day (also past midnight); parallel clock-ins record one | ✅ | employees e2e |
+| Forgotten clock-outs caught; managers record absent, leave, half day or correct times, audited | ✅ | employees e2e |
+| Attendance and hours report per employee | ✅ | employees e2e |
+| Employee activity: login/logout times and recent actions | ✅ | employees e2e |
+| Isolation per organization and branch | ✅ | all three suites |
+| Receipts behind signed, expiring links | 🟡 | Stored under unguessable names for now; signed URLs in Phase 8 |
+| Shift roster (planned shifts) API | 🟡 | Schema ready (`employee_shifts`); API later |
+| Split shifts on one day | 🟡 | One attendance span per day; a manager records the total |
+| Staff, expense and cash screens (frontend) | 🟡 | Next.js frontend |
+
 ## Later phases
 
 | Phase | Area | Status |
 |---|---|---|
-| 6 | Expenses, employees, attendance, cash shifts & reconciliation | 🟡 schema ready |
 | 7 | Dashboard, reports, CSV/PDF exports | ⏳ |
 | 8 | Hardening, load tests, monitoring, deployment & backup runbooks, admin/user docs | ⏳ |
 | 2+ | Next.js frontend | ⏳ |

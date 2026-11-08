@@ -57,6 +57,11 @@ export class UpdateBranchSettingsDto {
   @IsBoolean()
   allowNegativeStock?: boolean;
 
+  @ApiPropertyOptional({ description: 'true (default): cash payments and cash refunds need the cashier to have an open cash shift' })
+  @IsOptional()
+  @IsBoolean()
+  cashRequiresShift?: boolean;
+
   @ApiPropertyOptional({ example: '5' })
   @IsOptional()
   @Matches(/^(100(\.0{1,3})?|[0-9]{1,2}(\.[0-9]{1,3})?)$/, { message: 'serviceChargePercent must be between 0 and 100' })

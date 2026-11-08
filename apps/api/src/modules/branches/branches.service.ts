@@ -96,6 +96,7 @@ export class BranchesService {
           invoicePrefix: dto.invoicePrefix,
           stockDeductionPolicy: dto.stockDeductionPolicy,
           allowNegativeStock: dto.allowNegativeStock,
+          cashRequiresShift: dto.cashRequiresShift,
           serviceChargePercent: dto.serviceChargePercent === undefined ? undefined : new Prisma.Decimal(dto.serviceChargePercent),
           maxCashierDiscountPct: dto.maxCashierDiscountPct === undefined ? undefined : new Prisma.Decimal(dto.maxCashierDiscountPct),
         },
