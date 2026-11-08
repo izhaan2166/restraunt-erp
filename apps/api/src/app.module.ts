@@ -31,6 +31,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { PurchasingModule } from './modules/purchasing/purchasing.module';
 import { CashModule } from './modules/cash/cash.module';
 import { ExpensesModule } from './modules/expenses/expenses.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { EmployeesModule } from './modules/employees/employees.module';
 import { IdempotencyModule } from './common/idempotency/idempotency';
 import { Global } from '@nestjs/common';
@@ -97,6 +98,7 @@ const env = loadEnv();
     PurchasingModule,
     CashModule,
     ExpensesModule,
+    ReportsModule,
     EmployeesModule,
   ],
   controllers: [HealthController],

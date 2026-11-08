@@ -9,8 +9,10 @@ schema, authentication, RBAC), Phase 2 (menu, branch pricing, add-ons, combos, t
 floor plan), Phase 3 (orders, KOTs, billing engine, GST invoices, split payments, refunds,
 credit notes), Phase 4 (kitchen display, WebSocket realtime events with safe reconnect), Phase 5
 (inventory, recipes with automatic stock deduction, suppliers, purchase orders, goods receipts,
-supplier bills and payments) and Phase 6 (expenses with receipts, employees, attendance, cash
-shifts with reconciliation).** Next: Phase 7 – dashboard, reports and exports.
+supplier bills and payments), Phase 6 (expenses with receipts, employees, attendance, cash
+shifts with reconciliation) and Phase 7 (dashboard, sales/GST/stock/profit/staff reports, CSV and
+PDF exports, invoice PDF).** Next: Phase 8 – security hardening, load tests, monitoring and
+deployment.
 
 | | |
 |---|---|
@@ -20,6 +22,7 @@ shifts with reconciliation).** Next: Phase 7 – dashboard, reports and exports.
 | Billing & GST rules | [docs/billing.md](docs/billing.md) |
 | Inventory & purchasing rules | [docs/inventory.md](docs/inventory.md) |
 | Cash, expenses & staff rules | [docs/cash-and-staff.md](docs/cash-and-staff.md) |
+| Reports & dashboard definitions | [docs/reports.md](docs/reports.md) |
 | Progress | [docs/requirements-checklist.md](docs/requirements-checklist.md) |
 
 ## Stack

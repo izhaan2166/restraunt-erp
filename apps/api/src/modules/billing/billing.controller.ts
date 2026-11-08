@@ -1,11 +1,12 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Req, StreamableFile } from '@nestjs/common';
+import { ApiBearerAuth, ApiProduces, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { CurrentUser, RequirePermissions } from '../../common/decorators/auth.decorators';
 import { requestMeta } from '../../common/http/request-meta';
 import { Idempotent } from '../../common/idempotency/idempotency';
 import type { AuthPrincipal } from '../auth/principal';
 import { BillingService } from './billing.service';
+import { invoicePdf } from './invoice-pdf';
 import {
   CancelInvoiceDto,
   CheckoutDto,
@@ -50,6 +51,16 @@ export class BillingController {
   @RequirePermissions('invoices.read', 'any')
   get(@CurrentUser() u: AuthPrincipal, @Param('id', ParseUUIDPipe) id: string) {
     return this.billing.get(u, id);
+  }
+
+  /** The GST tax invoice as a printable PDF (reprints the stored invoice). */
+  @Get('invoices/:id/pdf')
+  @ApiProduces('application/pdf')
+  @RequirePermissions('invoices.read', 'any')
+  async pdf(@CurrentUser() u: AuthPrincipal, @Param('id', ParseUUIDPipe) id: string) {
+    const inv = await this.billing.get(u, id);
+    const name = `invoice-${inv.invoiceNumber.replace(/[^A-Za-z0-9-]+/g, '-')}.pdf`;
+    return new StreamableFile(await invoicePdf(inv), { type: 'application/pdf', disposition: `inline; filename="${name}"` });
   }
 
   @Post('invoices/:id/payments')

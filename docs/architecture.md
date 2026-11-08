@@ -102,7 +102,7 @@ authorization policy on every route, and tests. Controllers only translate HTTP 
 | expenses | 6 ✅ | expense_categories, expenses | Expense records |
 | employees, attendance | 6 ✅ | employees, attendance, employee_shifts | Staff profiles, attendance |
 | shifts (cash) | 6 ✅ | cash_sessions, cash_movements | Drawer open/close and reconciliation |
-| reports | 7 | (read models) | Sales, GST, P&L, inventory, exports |
+| reports | 7 ✅ | (computed from the tables above) | Dashboard, sales, GST, P&L, inventory, staff reports; CSV/PDF |
 | idempotency | 3 ✅ | idempotency_keys | Replay-safe POSTs |
 
 The whole schema is created in Phase 1 so relationships are designed once; later phases add
@@ -285,6 +285,19 @@ Rules in plain words: [inventory.md](inventory.md).
   the employee row is locked during clock-in/out.
 
 Rules in plain words: [cash-and-staff.md](cash-and-staff.md).
+
+## 9c. Reports (Phase 7)
+
+- **No copies.** Reports and the dashboard are SQL aggregates over the transactional tables, run
+  when asked. There are no summary tables to drift out of step.
+- **One definition.** Sales figures come from one set of aggregates (`reports/facts.ts`) grouped by
+  branch and period, so the dashboard, sales, branch, GST and profit reports cannot disagree.
+- **Access.** Each report names its permission; the branches covered are those where the caller
+  holds it (or the one asked for). Financial figures on the dashboard need `reports.financial`.
+- **Exports.** Every report has one shape (summary + tables), rendered as JSON, CSV or PDF (PDFKit,
+  standard fonts). Invoice PDFs reprint the stored invoice.
+
+Definitions in plain words: [reports.md](reports.md).
 
 ## 10. Errors, logging and observability
 
