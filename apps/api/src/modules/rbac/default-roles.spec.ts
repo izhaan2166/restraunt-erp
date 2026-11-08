@@ -37,7 +37,7 @@ describe('default role matrix', () => {
     ['menu.price.update', ['SUPER_ADMIN', 'OWNER']],
     ['billing.price.override', ['SUPER_ADMIN', 'OWNER']],
     ['roles.manage', ['SUPER_ADMIN', 'OWNER']],
-    ['credit_notes.create', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT']],
+    ['credit_notes.create', ['SUPER_ADMIN', 'OWNER', 'ACCOUNTANT', 'MANAGER']],
   ];
   it.each(sensitive)('%s is held only by %j', (code, holders) => {
     const actual = DEFAULT_ROLES.filter((r) => r.permissions.includes(code)).map((r) => r.key);

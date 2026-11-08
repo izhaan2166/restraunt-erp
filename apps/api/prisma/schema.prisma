@@ -295,6 +295,7 @@ model BranchSettings {
   branch Branch @relation(fields: [branchId, organizationId], references: [id, organizationId])
 
   @@unique([branchId, organizationId])
+  @@unique([organizationId, invoicePrefix], map: "branch_settings_invoice_prefix_key") // invoice numbers are unique per organization
   @@map("branch_settings")
 }
 
@@ -1000,6 +1001,7 @@ model Invoice {
 model InvoiceItem {
   id            String  @id @default(uuid()) @db.Uuid
   invoiceId     String  @map("invoice_id") @db.Uuid
+  lineNo        Int     @default(0) @map("line_no") // print order
   orderItemId   String? @map("order_item_id") @db.Uuid
   description   String
   hsnSac        String? @map("hsn_sac") @db.VarChar(8)

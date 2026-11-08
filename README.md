@@ -5,14 +5,16 @@ billing, KOT and kitchen display, GST invoicing (CGST/SGST/IGST, HSN/SAC), inven
 recipes, purchasing, expenses, staff, cash shifts, reports, and multi-branch management.
 
 Built in phases, each implemented and tested before the next. **Done: Phase 1 (architecture,
-schema, authentication, RBAC) and Phase 2 (menu, branch pricing, add-ons, combos, tables and
-floor plan).** Next: Phase 3 – POS, orders, billing and GST invoices.
+schema, authentication, RBAC), Phase 2 (menu, branch pricing, add-ons, combos, tables and
+floor plan) and Phase 3 (orders, KOTs, billing engine, GST invoices, split payments, refunds,
+credit notes).** Next: Phase 4 – kitchen display and realtime updates.
 
 | | |
 |---|---|
 | Architecture | [docs/architecture.md](docs/architecture.md) |
 | Database & ER diagrams | [docs/database.md](docs/database.md) |
 | API contracts | [docs/api-contracts.md](docs/api-contracts.md) · Swagger at `/api/docs` |
+| Billing & GST rules | [docs/billing.md](docs/billing.md) |
 | Progress | [docs/requirements-checklist.md](docs/requirements-checklist.md) |
 
 ## Stack

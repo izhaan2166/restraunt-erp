@@ -15,8 +15,8 @@ production); machine-readable spec: [`openapi.json`](./openapi.json) (`GET /api/
 | Validation | Unknown fields are rejected (`VALIDATION_FAILED`, details list each problem). |
 | Pagination | `?page=1&pageSize=25` (max 100), `?order=asc|desc`, `?search=`. Module-specific filters are documented per endpoint. |
 | Money | Decimal strings in JSON, never floats. Values are exact but not zero-padded (`"945"`, `"945.5"`, `"2.5"` for rates); format for display on the client. Requests send amounts as strings with up to 2 decimals (`"945.50"`). Clients send quantities and choices, never totals. |
-| Idempotency (Phase 3+) | `Idempotency-Key: <uuid>` required on order submission, checkout, invoice creation, payments and refunds. Same key + same body replays the stored response; same key + different body returns `409 IDEMPOTENCY_KEY_REUSED`. |
-| Concurrency | Mutable aggregates (tables now, orders in Phase 3) return `version`; updates may send it back and get `409 CONCURRENT_UPDATE` if someone else changed the record first. Table operations also take row locks, so simultaneous operations on one table are serialised. |
+| Idempotency | `Idempotency-Key: <uuid>` required on order submission, checkout, invoice creation, payments and refunds. Same key + same body replays the stored response; same key + different body returns `409 IDEMPOTENCY_KEY_REUSED`. |
+| Concurrency | Mutable aggregates (tables, orders) return `version`; updates may send it back and get `409 CONCURRENT_UPDATE` if someone else changed the record first. Table operations also take row locks, so simultaneous operations on one table are serialised. |
 | Tracing | Send `X-Request-Id` to correlate; every error carries `requestId`. |
 
 ## Error codes (Phase 1)
@@ -117,32 +117,66 @@ Phase 2 error codes: `INVALID_CATEGORY`, `INVALID_PARENT`, `CATEGORY_NOT_EMPTY`,
 `TABLE_MERGED`, `TABLE_HAS_MERGES`, `TABLE_NOT_MERGED`, `TABLE_HAS_OPEN_ORDERS`, `TABLE_NOT_RESERVED`,
 `TABLE_NOT_OUT_OF_SERVICE`, `SAME_TABLE`, `DUPLICATE_TABLE`, `INVALID_RESERVATION_TIME`, `CONCURRENT_UPDATE`.
 
+## Implemented in Phase 3
+
+Money values are decimal strings computed by the server (`docs/billing.md`). Routes that address a
+record by id check the caller's role in that record's branch: `404` without any role there, `403`
+without the permission. Routes marked **Idem.** require an `Idempotency-Key` header (8–100 characters: letters, digits, `_`, `-`; a UUID is ideal);
+a replay returns the stored response with `Idempotent-Replayed: true`.
+
+| Method | Path | Permission (scope) | Notes |
+|---|---|---|---|
+| GET | /orders | `orders.read` (branch) | `branchId`, `status` (comma-separated), `type`, `from`, `to`, `tableSessionId`; paginated |
+| POST | /orders | `orders.create` (branch) **Idem.** | `{ branchId, orderType, tableId?, customerName?, customerPhone?, deliveryAddress?, guestCount?, notes?, items: [{ productId, variantId?, quantity, modifiers?: [{ modifierId }], instructions?, unitPriceOverride?, overrideReason? }] }`. Dine-in needs an open table; delivery needs an address. Price override needs `billing.price.override` and a reason |
+| GET | /orders/:id | `orders.read` | Items, modifiers, discounts, KOTs, totals, `version`, `allowedTransitions` |
+| PATCH | /orders/:id | `orders.update` | `{ version, addItems?, updateItems?: [{ id, quantity }], removeItems?: [{ id, reason? }], customer fields }`. Editable from NEW to SERVED until invoiced; items already sent to the kitchen can only be removed (needs `orders.cancel` and a reason) |
+| POST | /orders/:id/confirm | `orders.update` | NEW → CONFIRMED; creates one KOT per kitchen station |
+| POST | /orders/:id/kot | `orders.update` | Sends items added later to the kitchen as new KOTs |
+| POST | /orders/:id/status | `orders.update` | `{ status, version? }`; state machine below. COMPLETED needs a fully paid invoice |
+| POST | /orders/:id/cancel | `orders.cancel` | `{ reason }`; not once invoiced (cancel the invoice first) |
+| POST | /orders/:id/reopen | `orders.reopen` | `{ reason }`; restores the items the cancel removed |
+| POST | /orders/:id/discounts | `billing.discount.apply`; over the branch cashier limit also `billing.discount.override` | `{ scope: ORDER\|ITEM, type: PERCENTAGE\|FIXED, value, orderItemId?, reason, version }` |
+| DELETE | /orders/:id/discounts/:discountId?version= | `billing.discount.apply` | |
+| POST | /billing/checkout | `billing.checkout` **Idem.** | `{ orderId, buyerName?, buyerGstin?, payments: [{ method, amount, reference? }] }` → final GST invoice and payments in one transaction (reuses the order's invoice if it already has one) |
+| GET | /invoices | `invoices.read` (branch) | `branchId`, `status`, `from`, `to`; paginated |
+| POST | /invoices | `invoices.create` **Idem.** | `{ orderId, buyerName?, buyerGstin? }` → issues the final invoice without payment (dine-in table becomes BILL_PENDING) |
+| GET | /invoices/:id | `invoices.read` | Lines, tax summary by rate, payments, refunds, credit notes, `due`, `netPaid`, `outstanding`, `refundDue` |
+| POST | /invoices/:id/payments | `payments.create` **Idem.** | `{ method, amount, reference? }`; amount ≤ outstanding |
+| POST | /invoices/:id/refunds | `refunds.create` **Idem.** | `{ paymentId, amount, reason, method?, creditNoteId?, restock? }` (`restock` is recorded now and applied to stock in Phase 5). Without `refunds.approve` the refund is PENDING until a manager approves it |
+| GET | /refunds | `payments.read` (branch) | `branchId`, `status` |
+| POST | /refunds/:id/approve, /refunds/:id/reject | `refunds.approve` | Reject takes `{ reason }`; you cannot approve your own refund |
+| POST | /invoices/:id/credit-notes | `credit_notes.create` | `{ reason, lines: [{ invoiceItemId, quantity }] }`; tax is reversed line by line |
+| POST | /invoices/:id/cancel | `credit_notes.create` | `{ reason }`; only while nothing is paid (refund first). Credits everything still uncredited and lets the order be billed again |
+
+Invoices are issued final in one step (number, seller snapshot, lines, GST), so there is no separate
+finalize endpoint. Once final, an invoice cannot be edited (database triggers); corrections are made
+with credit notes. Invoice PDF arrives with reports in Phase 7.
+
+Order state machine (server-enforced): `NEW → CONFIRMED → PREPARING → READY → SERVED → COMPLETED`;
+takeaway `READY → PICKED_UP → COMPLETED`; delivery `READY → OUT_FOR_DELIVERY → DELIVERED → COMPLETED`.
+Steps can be skipped forward (e.g. CONFIRMED → SERVED). `CANCELLED` via `/cancel` only. An order that
+is already fully paid completes by itself when it reaches its last step (served, picked up or delivered).
+
+Numbering: orders `YYYYMMDD-0001` and KOTs `KYYYYMMDD-0001` per branch per day (IST); invoices
+`<prefix>/<FY>/<n>` (e.g. `MAIN/2627/1`) and credit notes `<prefix>-CN/<FY>/<n>`, consecutive per
+branch per financial year (April–March).
+
+Phase 3 error codes: `IDEMPOTENCY_KEY_REQUIRED`, `INVALID_IDEMPOTENCY_KEY`, `IDEMPOTENCY_KEY_REUSED`,
+`IDEMPOTENCY_IN_PROGRESS`, `TABLE_REQUIRED`, `TABLE_NOT_ALLOWED`, `TABLE_NOT_OPEN`, `TABLE_CLOSED`,
+`DELIVERY_ADDRESS_REQUIRED`, `INVALID_PRODUCT`, `VARIANT_REQUIRED`, `INVALID_VARIANT`, `ITEM_UNAVAILABLE`,
+`INVALID_MODIFIER`, `DUPLICATE_MODIFIER`, `INVALID_MODIFIER_SELECTION`, `REASON_REQUIRED`, `INVALID_ORDER_ITEM`,
+`ORDER_ITEM_REQUIRED`, `INVALID_QUANTITY`, `ORDER_EMPTY`, `ORDER_NOT_EDITABLE`, `ORDER_INVOICED`,
+`ORDER_CANCELLED`, `ITEM_SENT_TO_KITCHEN`, `NOTHING_TO_SEND`, `INVALID_TRANSITION`, `USE_CANCEL`,
+`USE_CONFIRM`, `ORDER_NOT_BILLED`, `ORDER_NOT_PAID`, `INVALID_DISCOUNT`, `DISCOUNT_LIMIT_EXCEEDED`,
+`ALREADY_INVOICED`, `INVOICE_NOT_FINAL`, `INVOICE_NOT_PAYABLE`, `INVALID_AMOUNT`, `INVALID_PAYMENT`,
+`AMOUNT_EXCEEDS_OUTSTANDING`, `REFUND_EXCEEDS_PAYMENT`, `REFUND_EXCEEDS_CREDIT_NOTE`, `INVALID_CREDIT_NOTE`,
+`REFUND_NOT_PENDING`, `SELF_APPROVAL`, `INVALID_INVOICE_ITEM`, `DUPLICATE_LINE`, `EXCEEDS_INVOICED_QUANTITY`,
+`NOTHING_TO_CREDIT`, `INVOICE_HAS_PAYMENTS`, `CONCURRENT_UPDATE`.
+
 ## Planned contracts (later phases)
 
 These fix names and shapes now so the frontend and backend can be built against them. Details
 may be refined in each phase's PR.
-
-### Phase 3 – Orders, billing, payments
-```
-GET    /orders?branchId=&status=&type=&from=&to=
-POST   /orders                     Idempotency-Key. { branchId, orderType, tableId?, items: [{ productId, variantId?, quantity, modifiers[], instructions? }] }
-GET    /orders/:id
-PATCH  /orders/:id                 { version, addItems[], removeItemIds[], updateItems[] }
-POST   /orders/:id/confirm         NEW → CONFIRMED, creates KOTs
-POST   /orders/:id/cancel          { reason }   orders.cancel
-POST   /orders/:id/reopen          { reason }   orders.reopen
-POST   /orders/:id/discounts       { scope, type, value, orderItemId?, reason }  billing.discount.apply / .override
-POST   /billing/checkout           Idempotency-Key. { orderId, buyerGstin?, payments: [{ method, amount, reference? }] } → invoice + payments in one transaction
-POST   /invoices                   Idempotency-Key. { orderId }
-GET    /invoices/:id               GET /invoices/:id/pdf
-POST   /invoices/:id/finalize
-POST   /invoices/:id/payments      Idempotency-Key. { method, amount, reference? }  amount ≤ outstanding
-POST   /invoices/:id/refunds       Idempotency-Key. { paymentId, amount, reason, restock }  refunds.create (+ approval)
-POST   /invoices/:id/credit-notes  { lines[], reason }
-```
-Order state machine (server-enforced): `NEW → CONFIRMED → PREPARING → READY → SERVED → COMPLETED`;
-takeaway `READY → PICKED_UP → COMPLETED`; delivery `READY → OUT_FOR_DELIVERY → DELIVERED → COMPLETED`;
-`CANCELLED` from any non-final state with a reason; reopen only with `orders.reopen`.
 
 ### Phase 4 – Kitchen and realtime
 ```
