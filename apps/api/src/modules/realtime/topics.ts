@@ -7,6 +7,7 @@ export const TOPIC_PERMISSION = {
   tables: 'tables.read',
   payments: 'payments.read',
   inventory: 'inventory.read',
+  shifts: 'shifts.read',
 } as const;
 
 export type Topic = keyof typeof TOPIC_PERMISSION;

@@ -7,9 +7,10 @@ recipes, purchasing, expenses, staff, cash shifts, reports, and multi-branch man
 Built in phases, each implemented and tested before the next. **Done: Phase 1 (architecture,
 schema, authentication, RBAC), Phase 2 (menu, branch pricing, add-ons, combos, tables and
 floor plan), Phase 3 (orders, KOTs, billing engine, GST invoices, split payments, refunds,
-credit notes), Phase 4 (kitchen display, WebSocket realtime events with safe reconnect) and Phase 5
+credit notes), Phase 4 (kitchen display, WebSocket realtime events with safe reconnect), Phase 5
 (inventory, recipes with automatic stock deduction, suppliers, purchase orders, goods receipts,
-supplier bills and payments).** Next: Phase 6 – expenses, employees, attendance and cash shifts.
+supplier bills and payments) and Phase 6 (expenses with receipts, employees, attendance, cash
+shifts with reconciliation).** Next: Phase 7 – dashboard, reports and exports.
 
 | | |
 |---|---|
@@ -18,6 +19,7 @@ supplier bills and payments).** Next: Phase 6 – expenses, employees, attendanc
 | API contracts | [docs/api-contracts.md](docs/api-contracts.md) · Swagger at `/api/docs` |
 | Billing & GST rules | [docs/billing.md](docs/billing.md) |
 | Inventory & purchasing rules | [docs/inventory.md](docs/inventory.md) |
+| Cash, expenses & staff rules | [docs/cash-and-staff.md](docs/cash-and-staff.md) |
 | Progress | [docs/requirements-checklist.md](docs/requirements-checklist.md) |
 
 ## Stack

@@ -98,3 +98,15 @@ export async function addUserWithRole(
   fx.users[handle] = { id: u.id, email };
   return tokenFor(ctx, fx, handle);
 }
+
+/** Opens a cash shift (drawer) for the token's user so they can take cash. Returns the shift id. */
+export async function openShift(ctx: TestContext, token: string, branchId: string, openingBalance = '1000.00'): Promise<string> {
+  const res = await ctx
+    .http()
+    .post(`${API}/cash-sessions/open`)
+    .set(bearer(token))
+    .set('Idempotency-Key', randomUUID())
+    .send({ branchId, openingBalance })
+    .expect(201);
+  return res.body.data.id;
+}

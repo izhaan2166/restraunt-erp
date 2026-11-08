@@ -197,7 +197,7 @@ forward; items added later go to the kitchen as new tickets without moving a rea
 | Direction | Message | Payload |
 |---|---|---|
 | server → client | `ready` | `{ userId, expiresAt }` after the handshake is accepted |
-| client → server | `subscribe` (with ack) | `{ branchId, topics?: [orders, kitchen, tables, payments, inventory], since? }` → `{ ok, topics, events?, lastSeq?, resyncRequired? }` or `{ ok: false, error: { code, message } }` |
+| client → server | `subscribe` (with ack) | `{ branchId, topics?: [orders, kitchen, tables, payments, inventory, shifts], since? }` → `{ ok, topics, events?, lastSeq?, resyncRequired? }` or `{ ok: false, error: { code, message } }` |
 | client → server | `unsubscribe` (with ack) | `{ branchId }` |
 | server → client | `event` | `{ id, type, topic, branchId, entityType, entityId, entityVersion, data, occurredAt }` |
 | server → client | `session_expired` | `{ reason: TOKEN_EXPIRED \| SESSION_REVOKED }`, then the socket closes; reconnect with a fresh token and `since` |
@@ -208,7 +208,7 @@ Handshake errors arrive as `connect_error` with `data.code` (`UNAUTHENTICATED`, 
 Event types: `order.created`, `order.updated`, `order.cancelled` (topic orders); `kot.created`,
 `kot.updated`, `kot.item.updated` (kitchen); `table.status.updated` (tables); `payment.completed`,
 `refund.requested`, `refund.completed`, `refund.rejected` (payments); `inventory.low_stock`,
-`inventory.restocked` (inventory, Phase 5). `shift.closed` arrives with Phase 6.
+`inventory.restocked` (inventory, Phase 5); `shift.opened`, `shift.closed` (shifts, Phase 6, needs `shifts.read`).
 
 Phase 4 error codes: `INVALID_STATION`, `ITEM_CANCELLED`, `TICKET_CANCELLED`, `ORDER_CANCELLED`,
 `INVALID_TRANSITION`, `RESYNC_REQUIRED`.
@@ -281,18 +281,80 @@ Phase 5 error codes: `INVALID_BASE_UNIT`, `INVALID_UNIT`, `UNIT_MISMATCH`, `INVA
 `INVOICE_CANCELLED`, `INVOICE_HAS_PAYMENTS`, `INVOICE_NOT_PAYABLE`, `AMOUNT_EXCEEDS_OUTSTANDING`,
 `DUPLICATE_PREFIX`.
 
+## Implemented in Phase 6
+
+Rules for cash drawers, expenses and attendance in plain words: [cash-and-staff.md](cash-and-staff.md).
+
+**Cash shifts** (one open drawer per cashier per branch)
+
+| Method | Path | Permission (scope) | Notes |
+|---|---|---|---|
+| POST | /cash-sessions/open | `shifts.open` (branch) **Idem.** | `{ branchId, openingBalance, terminal? }`. `SHIFT_ALREADY_OPEN` |
+| GET | /cash-sessions/current | `shifts.open` (branch) | `branchId`. Your open shift with live `expectedCash`, or `null` |
+| GET | /cash-sessions | `shifts.read` (branch) | `branchId`, `status?`, `userId?`, `from?`, `to?`; paginated |
+| GET | /cash-sessions/summary | `shifts.read` (branch) | `branchId`, `from`, `to`. Per cashier: shifts, open shifts, cash sales, refunds, cash in/out, expenses, shortages, overages, net discrepancy |
+| GET | /cash-sessions/:id | own shift, or `shifts.read` | With movements |
+| GET | /cash-sessions/:id/report | own shift, or `shifts.read` | Shift report: opening, cash sales, refunds, cash in/out, expenses, expected, actual, discrepancy; payments and refunds by method; total collected |
+| POST | /cash-sessions/:id/movements | `cash.movement` (another cashier's drawer also needs `shifts.read`) **Idem.** | `{ type: CASH_IN\|CASH_OUT, amount, reason }`. Taking out more than is in the drawer → `409 INSUFFICIENT_CASH` |
+| POST | /cash-sessions/:id/close | `shifts.close` (another cashier's shift also needs `shifts.read`) | `{ actualCash, notes? }` → 200. A shortage or overage needs `notes` (`422 DISCREPANCY_NOTE_REQUIRED`, details `expectedCash`, `discrepancy`). A closed shift can never change (`SHIFT_CLOSED`) |
+
+Cash payments (`POST /payments`) and cash refunds now go through a drawer: the payment goes into the
+receiving cashier's open shift, a cash refund comes out of the requester's open shift (else the
+approver's). With no open shift → `409 NO_OPEN_SHIFT`, unless the branch sets `cashRequiresShift: false`
+in `PATCH /branches/:id/settings`. Closing a shift with a difference also writes a `shift.discrepancy`
+notification.
+
+**Expenses**
+
+| Method | Path | Permission (scope) | Notes |
+|---|---|---|---|
+| GET | /expense-categories | `expenses.read` (any branch) | `includeInactive?` |
+| POST | /expense-categories | `expenses.create` | `{ name }`. `DUPLICATE_NAME` |
+| PATCH | /expense-categories/:id | `expenses.update` | name, isActive |
+| GET | /expenses | `expenses.read` (branch) | `branchId`, `from?`, `to?`, `categoryId?`, `employeeId?`, `paymentMethod?`, `includeDeleted?`; paginated |
+| GET | /expenses/summary | `expenses.read` (branch) | `branchId`, `from`, `to`. Count, total, tax, by category and by payment method |
+| GET | /expenses/:id | `expenses.read` | |
+| GET | /expenses/:id/history | `expenses.read` | Every change from the audit log, with who made it and the reason |
+| POST | /expenses | `expenses.create` (branch) **Idem.** | `{ branchId, categoryId, amount (GST included), taxAmount?, description, expenseDate, paymentMethod, paidTo?, employeeId?, fromCashDrawer? }`. `fromCashDrawer` takes the cash out of your open shift (`DRAWER_NEEDS_CASH`, `NO_OPEN_SHIFT`, `INSUFFICIENT_CASH`) |
+| PATCH | /expenses/:id | `expenses.update` | Any field above plus a required `reason`. Changing a drawer expense's amount moves the difference through the drawer while the shift is open (`SHIFT_CLOSED` after) |
+| DELETE | /expenses/:id | `expenses.delete` | `{ reason }` → 204. Soft delete; drawer cash is put back while the shift is open |
+| POST | /expenses/:id/receipt | creator with `expenses.create`, or `expenses.update` | multipart field `receipt`: PDF, JPEG, PNG or WebP up to `UPLOAD_MAX_RECEIPT_BYTES` (5 MB). `UNSUPPORTED_FILE`, `FILE_REQUIRED` |
+
+Default roles: managers and accountants record expenses, accountants (and owners) edit them, only
+owners delete them.
+
+**Employees and attendance** (work dates are India dates)
+
+| Method | Path | Permission (scope) | Notes |
+|---|---|---|---|
+| GET | /employees/me | signed in | Your own profile |
+| GET | /employees | `employees.read` | `branchId?`, `search?`, `includeInactive?`. Only staff of branches you can see; salary only for people who manage them |
+| GET | /employees/:id | `employees.read` | With the linked login, its roles and branches |
+| GET | /employees/:id/activity | `employees.read` | Recent logins (login/logout time, device, still active) and audited actions |
+| POST | /employees | `employees.manage` (the employee's branch) | `{ employeeCode, fullName, phone?, email?, designation?, joiningDate?, monthlySalary?, primaryBranchId?, userId? }`. Code is upper-cased. `DUPLICATE_EMPLOYEE_CODE`, `USER_ALREADY_LINKED`, `INVALID_USER`, `INVALID_BRANCH`. Head-office staff (no branch) need an organization-wide role |
+| PATCH | /employees/:id | `employees.manage` | Any field above plus `isActive`; audited with before/after |
+| DELETE | /employees/:id | `employees.manage` | Soft delete → 204. `EMPLOYEE_CLOCKED_IN` |
+| POST | /attendance/clock-in | `attendance.self` (branch) | `{ branchId, notes? }`. `EMPLOYEE_PROFILE_REQUIRED` (422), `EMPLOYEE_INACTIVE`, `ALREADY_CLOCKED_IN`, `ALREADY_CLOCKED_OUT` |
+| POST | /attendance/clock-out | `attendance.self` | `{ notes? }` → 200. Works after midnight for a late shift. `NOT_CLOCKED_IN`; a clock-in over 20 hours old → `CLOCK_IN_TOO_OLD` |
+| GET | /attendance/me | signed in | `from`, `to` |
+| PUT | /attendance | `attendance.manage` (branch) | `{ branchId, employeeId, workDate, status: PRESENT\|HALF_DAY\|ABSENT\|LEAVE, clockInAt?, clockOutAt?, notes?, reason }`. Records or corrects a day; audited. `FUTURE_DATE`, `TIMES_NOT_ALLOWED`, `CLOCK_IN_REQUIRED`, `INVALID_TIMES` |
+| GET | /attendance | `employees.read` (branch) | `branchId`, `from`, `to`, `employeeId?`. Each with `hoursWorked` |
+| GET | /attendance/summary | `employees.read` (branch) | Same filters. Per employee: present, half days, absent, leave, hours, still clocked in |
+
+Date ranges are limited to 366 days (`RANGE_TOO_LONG`).
+
+Phase 6 error codes: `SHIFT_ALREADY_OPEN`, `SHIFT_CLOSED`, `NO_OPEN_SHIFT`, `INSUFFICIENT_CASH`,
+`DISCREPANCY_NOTE_REQUIRED`, `INVALID_AMOUNT`, `INVALID_TAX`, `INVALID_CATEGORY`, `CATEGORY_INACTIVE`,
+`DRAWER_NEEDS_CASH`, `EXPENSE_FROM_DRAWER`, `EXPENSE_DELETED`, `UNSUPPORTED_FILE`, `FILE_REQUIRED`,
+`FUTURE_DATE`, `DUPLICATE_EMPLOYEE_CODE`, `USER_ALREADY_LINKED`, `INVALID_USER`, `INVALID_EMPLOYEE`,
+`INVALID_BRANCH`, `EMPLOYEE_CLOCKED_IN`, `EMPLOYEE_INACTIVE`, `EMPLOYEE_PROFILE_REQUIRED`,
+`ALREADY_CLOCKED_IN`, `ALREADY_CLOCKED_OUT`, `NOT_CLOCKED_IN`, `CLOCK_IN_TOO_OLD`, `CLOCK_IN_REQUIRED`,
+`TIMES_NOT_ALLOWED`, `INVALID_TIMES`, `RANGE_TOO_LONG`.
+
 ## Planned contracts (later phases)
 
 These fix names and shapes now so the frontend and backend can be built against them. Details
 may be refined in each phase's PR.
-
-### Phase 6 – Expenses, employees, shifts
-```
-CRUD   /expenses  /expense-categories        receipts via signed upload URL
-CRUD   /employees    POST /attendance/clock-in  /attendance/clock-out
-POST   /cash-sessions/open   POST /cash-sessions/:id/movements   POST /cash-sessions/:id/close { actualCash, notes }
-GET    /cash-sessions/:id/report
-```
 
 ### Phase 7 – Dashboard and reports
 ```

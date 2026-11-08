@@ -15,3 +15,11 @@ export function sniffImage(buf: Buffer): ImageType | null {
   }
   return null;
 }
+
+export type ReceiptType = ImageType | { ext: 'pdf'; contentType: 'application/pdf' };
+
+/** Expense receipts: a photo (JPEG, PNG, WebP) or a PDF, identified by magic bytes. */
+export function sniffReceipt(buf: Buffer): ReceiptType | null {
+  if (buf.length >= 5 && buf.toString('ascii', 0, 5) === '%PDF-') return { ext: 'pdf', contentType: 'application/pdf' };
+  return sniffImage(buf);
+}

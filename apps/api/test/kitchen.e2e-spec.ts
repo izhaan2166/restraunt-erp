@@ -1,5 +1,5 @@
 import { API, TestContext, createTestApp } from './helpers/app';
-import { OrgFixture, bearer, createOrg, tokenFor } from './helpers/fixtures';
+import { OrgFixture, bearer, createOrg, openShift, tokenFor } from './helpers/fixtures';
 import { MenuFixture, addTable, key, seedMenu } from './helpers/menu';
 
 interface TicketItem {
@@ -78,6 +78,7 @@ describe('Kitchen display (e2e)', () => {
     menu = await seedMenu(ctx.prisma, fx);
     for (const h of ['owner', 'managerA', 'managerB', 'cashierA', 'waiterA', 'kitchenA', 'accountant']) tok[h] = await tokenFor(ctx, fx, h);
     tok.otherOwner = await tokenFor(ctx, other, 'owner');
+    await openShift(ctx, tok.cashierA, fx.branchA); // cash goes into a drawer
   });
   afterAll(() => ctx.close());
 

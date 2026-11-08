@@ -40,6 +40,7 @@ const EnvSchema = z
     STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
     UPLOAD_DIR: z.string().default('./uploads'),
     UPLOAD_MAX_IMAGE_BYTES: z.coerce.number().int().positive().default(2 * 1024 * 1024),
+    UPLOAD_MAX_RECEIPT_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
     S3_BUCKET: z.string().optional(),
     S3_REGION: z.string().default('ap-south-1'),
     S3_ENDPOINT: z.string().url().optional(),
