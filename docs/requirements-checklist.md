@@ -87,7 +87,7 @@ _Last updated: Phase 2._
 | Orders and invoices isolated per organization/branch | ✅ | orders & billing e2e |
 | Invoice PDF / print | 🟡 | Phase 7 (reports and exports) |
 | Cash payments tied to a cash shift | 🟡 | Phase 6 (cash shifts) |
-| Stock deduction on sale and restock on refund | 🟡 | Phase 5 (inventory) |
+| Stock deduction on sale and restock on refund | ✅ | Phase 5, `test/inventory.e2e-spec.ts` |
 | Live order updates to POS and kitchen screens | ✅ | Phase 4 realtime events |
 
 ## Phase 4 – Kitchen display and realtime
@@ -110,14 +110,43 @@ _Last updated: Phase 2._
 | Safe reconnect: replay on subscribe or `GET /realtime/events`; `RESYNC_REQUIRED` beyond retention | ✅ | realtime e2e |
 | Several API instances: gap-free numbering, every instance delivers | ✅ | realtime e2e (two app instances) |
 | PostgreSQL stays the source of truth (events are notifications; details via REST) | ✅ | design, `docs/architecture.md` §9 |
-| `inventory.low_stock`, `shift.closed` events | 🟡 | Emitted by Phases 5 and 6 |
+| `inventory.low_stock` event | ✅ | Phase 5 inventory e2e |
+| `shift.closed` event | 🟡 | Phase 6 |
 | Kitchen and POS screens (frontend) | 🟡 | Next.js frontend |
+
+## Phase 5 – Inventory, recipes, suppliers and purchasing
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Ingredients with a base unit (g, ml, pc); kg/l/dozen converted, mixing kinds refused | ✅ | `units.spec.ts`, `test/inventory.e2e-spec.ts` |
+| Stock per branch; append-only stock ledger with balance after each movement | ✅ | inventory e2e (ledger update/delete refused by the DB) |
+| Opening stock and physical counts (difference booked) | ✅ | inventory e2e |
+| Manual adjustments and wastage with reasons; cannot go below zero | ✅ | inventory e2e |
+| Weighted average cost; stock value | ✅ | `units.spec.ts`, purchasing e2e |
+| Recipes / BOM per product and per size, with wastage % and yield; cost per portion | ✅ | inventory e2e |
+| Sales deduct ingredients on order completion (default) or when sent to the kitchen | ✅ | inventory e2e |
+| Deduction happens exactly once; reopen/void reverses it; food already cooking stays used | ✅ | inventory e2e |
+| Combos deduct their components' recipes | ✅ | `stock.ts` (`usageFor`); no e2e test yet |
+| Refund with restock returns the credited items' ingredients | ✅ | inventory e2e |
+| Branch can forbid negative stock (blocks sending to the kitchen) | ✅ | inventory e2e |
+| Minimum levels, low-stock list, realtime `inventory.low_stock` / `inventory.restocked`, notification | ✅ | inventory e2e |
+| Concurrent stock changes serialized (balance row lock) | ✅ | inventory e2e (8 parallel) |
+| Suppliers with GSTIN, payment terms, outstanding and overdue amounts, account statement | ✅ | `test/purchasing.e2e-spec.ts` |
+| Purchase orders: draft, edit, approve, cancel, server-side totals, numbering | ✅ | purchasing e2e |
+| Goods receipts with partial deliveries; over-receipt refused; receipts without an order | ✅ | purchasing e2e |
+| Supplier invoices linked to deliveries; duplicates refused; due date from terms | ✅ | purchasing e2e |
+| Supplier payments: partial, never above outstanding, idempotent, concurrency-safe | ✅ | purchasing e2e |
+| Branch settings API (stock deduction policy, negative stock, tax mode, prefix) | ✅ | inventory e2e |
+| Audit log for every inventory and purchasing change | ✅ | services write `audit_logs`; purchasing e2e |
+| Isolation per organization and branch | ✅ | inventory & purchasing e2e |
+| Stock transfers between branches | 🟡 | Schema ready (TRANSFER_IN/OUT); API later |
+| Inventory and purchase reports | 🟡 | Phase 7 |
+| Inventory screens (frontend) | 🟡 | Next.js frontend |
 
 ## Later phases
 
 | Phase | Area | Status |
 |---|---|---|
-| 5 | Inventory ledger, recipes/BOM, unit conversion, suppliers, purchase orders, goods receipts | 🟡 schema ready |
 | 6 | Expenses, employees, attendance, cash shifts & reconciliation | 🟡 schema ready |
 | 7 | Dashboard, reports, CSV/PDF exports | ⏳ |
 | 8 | Hardening, load tests, monitoring, deployment & backup runbooks, admin/user docs | ⏳ |

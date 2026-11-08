@@ -142,7 +142,7 @@ a replay returns the stored response with `Idempotent-Replayed: true`.
 | POST | /invoices | `invoices.create` **Idem.** | `{ orderId, buyerName?, buyerGstin? }` → issues the final invoice without payment (dine-in table becomes BILL_PENDING) |
 | GET | /invoices/:id | `invoices.read` | Lines, tax summary by rate, payments, refunds, credit notes, `due`, `netPaid`, `outstanding`, `refundDue` |
 | POST | /invoices/:id/payments | `payments.create` **Idem.** | `{ method, amount, reference? }`; amount ≤ outstanding |
-| POST | /invoices/:id/refunds | `refunds.create` **Idem.** | `{ paymentId, amount, reason, method?, creditNoteId?, restock? }` (`restock` is recorded now and applied to stock in Phase 5). Without `refunds.approve` the refund is PENDING until a manager approves it |
+| POST | /invoices/:id/refunds | `refunds.create` **Idem.** | `{ paymentId, amount, reason, method?, creditNoteId?, restock? }` (`restock: true` needs `creditNoteId` and puts the credited items' ingredients back in stock when the refund completes). Without `refunds.approve` the refund is PENDING until a manager approves it |
 | GET | /refunds | `payments.read` (branch) | `branchId`, `status` |
 | POST | /refunds/:id/approve, /refunds/:id/reject | `refunds.approve` | Reject takes `{ reason }`; you cannot approve your own refund |
 | POST | /invoices/:id/credit-notes | `credit_notes.create` | `{ reason, lines: [{ invoiceItemId, quantity }] }`; tax is reversed line by line |
@@ -197,7 +197,7 @@ forward; items added later go to the kitchen as new tickets without moving a rea
 | Direction | Message | Payload |
 |---|---|---|
 | server → client | `ready` | `{ userId, expiresAt }` after the handshake is accepted |
-| client → server | `subscribe` (with ack) | `{ branchId, topics?: [orders, kitchen, tables, payments], since? }` → `{ ok, topics, events?, lastSeq?, resyncRequired? }` or `{ ok: false, error: { code, message } }` |
+| client → server | `subscribe` (with ack) | `{ branchId, topics?: [orders, kitchen, tables, payments, inventory], since? }` → `{ ok, topics, events?, lastSeq?, resyncRequired? }` or `{ ok: false, error: { code, message } }` |
 | client → server | `unsubscribe` (with ack) | `{ branchId }` |
 | server → client | `event` | `{ id, type, topic, branchId, entityType, entityId, entityVersion, data, occurredAt }` |
 | server → client | `session_expired` | `{ reason: TOKEN_EXPIRED \| SESSION_REVOKED }`, then the socket closes; reconnect with a fresh token and `since` |
@@ -207,27 +207,84 @@ Handshake errors arrive as `connect_error` with `data.code` (`UNAUTHENTICATED`, 
 
 Event types: `order.created`, `order.updated`, `order.cancelled` (topic orders); `kot.created`,
 `kot.updated`, `kot.item.updated` (kitchen); `table.status.updated` (tables); `payment.completed`,
-`refund.requested`, `refund.completed`, `refund.rejected` (payments). `inventory.low_stock` and
-`shift.closed` arrive with Phases 5 and 6.
+`refund.requested`, `refund.completed`, `refund.rejected` (payments); `inventory.low_stock`,
+`inventory.restocked` (inventory, Phase 5). `shift.closed` arrives with Phase 6.
 
 Phase 4 error codes: `INVALID_STATION`, `ITEM_CANCELLED`, `TICKET_CANCELLED`, `ORDER_CANCELLED`,
 `INVALID_TRANSITION`, `RESYNC_REQUIRED`.
+
+## Implemented in Phase 5
+
+Stock rules (units, average cost, when sales take stock, negative stock) are explained in
+[inventory.md](inventory.md). Quantities in requests may use any unit of the same kind as the
+ingredient's base unit (`kg` for an ingredient kept in `g`); stock is always reported in the base unit.
+
+**Ingredients, stock and recipes**
+
+| Method | Path | Permission (scope) | Notes |
+|---|---|---|---|
+| GET | /units | signed in | g, kg, ml, l, pc, dozen with conversion factors |
+| GET | /ingredients | `inventory.read` (any branch) | `search?`, `includeInactive?`, paginated |
+| GET | /ingredients/:id | `inventory.read` | |
+| POST | /ingredients | `inventory.manage` (any branch) | `{ name, sku?, baseUnit: g\|ml\|pc, category? }`. `INVALID_BASE_UNIT`, `DUPLICATE_NAME` |
+| PATCH | /ingredients/:id | `inventory.manage` | name, sku, category, isActive (base unit is fixed once created) |
+| DELETE | /ingredients/:id | `inventory.manage` | Soft delete. `INGREDIENT_IN_USE` (in a recipe), `INGREDIENT_HAS_STOCK` |
+| GET | /inventory | `inventory.read` (branch) | `branchId`, `search?`. Per ingredient: quantity, minimumLevel, averageCost, stockValue, isLow, isNegative |
+| GET | /inventory/low-stock | `inventory.read` (branch) | Same rows, only those below their minimum level |
+| PUT | /inventory/levels | `inventory.manage` (branch) | `{ branchId, levels: [{ ingredientId, minimumLevel }] }` |
+| GET | /inventory/movements | `inventory.read` (branch) | `branchId`, `ingredientId?`, `type?` (comma-separated), `from?`, `to?`; paginated ledger with `balanceAfter` and `value` |
+| POST | /inventory/adjustments | `inventory.adjust` (branch) **Idem.** | `{ branchId, ingredientId, quantity, unit?, reason, direction: IN\|OUT }`. OUT below zero → `409 INSUFFICIENT_STOCK` |
+| POST | /inventory/stock-counts | `inventory.adjust` (branch) **Idem.** | `{ branchId, reason, counts: [{ ingredientId, quantity, unit?, unitCost? }] }`. Books the difference; the first count of an ingredient is its opening stock (valued at `unitCost`) |
+| POST | /inventory/wastage | `inventory.wastage` (branch) **Idem.** | `{ branchId, ingredientId, quantity, unit?, reason }`. Valued at the average cost; cannot go below zero |
+| GET | /recipes/:productId | `inventory.read` | `variantId?`, `branchId?` (adds estimated cost per portion at that branch's average cost) |
+| PUT | /recipes/:productId | `recipes.manage` | `{ variantId?, yieldQuantity?, items: [{ ingredientId, quantity, unit, wastagePercent? }] }`. Replaces the active recipe; the old one is kept inactive. `UNIT_MISMATCH`, `DUPLICATE_LINE` |
+| DELETE | /recipes/:productId | `recipes.manage` | `variantId?` |
+| GET | /branches/:branchId/settings | `settings.read` (branch) | |
+| PATCH | /branches/:branchId/settings | `settings.update` (branch) | `taxPricingMode`, `roundingMode`, `invoicePrefix`, `stockDeductionPolicy` (ON_ORDER_CONFIRM \| ON_ORDER_COMPLETE \| NONE), `allowNegativeStock`, `serviceChargePercent`, `maxCashierDiscountPct`. `DUPLICATE_PREFIX` |
+
+When a branch sets `allowNegativeStock: false`, confirming an order or sending a KOT that needs more
+than is in stock fails with `409 INSUFFICIENT_STOCK` and `details.short: [{ ingredientId, name, onHand, required }]`.
+
+**Suppliers and purchasing**
+
+| Method | Path | Permission (scope) | Notes |
+|---|---|---|---|
+| GET | /suppliers | `suppliers.read` (any branch) | `search?`, `includeInactive?`. Each with `outstanding` and `overdue` (over the branches whose purchases you may see) |
+| GET | /suppliers/:id | `suppliers.read` | Same fields |
+| GET | /suppliers/:id/transactions | `suppliers.read` + `purchases.read` per branch | `branchId?`. Invoices (debit) and payments (credit) in date order with running `balance` |
+| POST | /suppliers | `suppliers.manage` | `{ name, contactPerson?, phone?, email?, gstin?, stateCode?, address?, paymentTermsDays? }`. GSTIN checked; state code taken from it. `DUPLICATE_NAME` |
+| PATCH | /suppliers/:id | `suppliers.manage` | Any field above plus `isActive` |
+| DELETE | /suppliers/:id | `suppliers.manage` | Soft delete. `SUPPLIER_IN_USE` while it has open orders or unpaid bills |
+| GET | /purchase-orders | `purchases.read` (branch) | `branchId`, `status?`, `supplierId?`, `pending?` (still waiting for delivery), `search?` |
+| GET | /purchase-orders/:id | `purchases.read` | Lines with `receivedQuantity` and `remainingQuantity`, and its goods receipts |
+| POST | /purchase-orders | `purchases.create` (branch) **Idem.** | `{ branchId, supplierId, expectedDate?, notes?, items: [{ ingredientId, unit, quantity, unitPrice, taxRate? }] }`. Totals computed on the server. Number `{prefix}-PO/{FY}/{n}`. Starts as DRAFT |
+| PATCH | /purchase-orders/:id | `purchases.create` | Drafts only (`PO_NOT_EDITABLE`); `items` replaces every line |
+| POST | /purchase-orders/:id/approve | `purchases.approve` | DRAFT → ORDERED (`PO_NOT_DRAFT`) |
+| POST | /purchase-orders/:id/cancel | `purchases.create` for drafts, `purchases.approve` once ordered | `{ reason }`. Cancels what has not arrived; received goods stay. `PO_NOT_CANCELLABLE` when fully received |
+| POST | /purchase-orders/:id/receipts | `purchases.receive` **Idem.** | `{ items: [{ purchaseOrderItemId, quantity, unitPrice? }], notes? }`. Partial deliveries allowed; more than ordered → `409 OVER_RECEIPT` (details: ordered, received, remaining). Order not approved/closed → `PO_NOT_RECEIVABLE`. Number `{prefix}-GRN/{FY}/{n}`. Response adds `purchaseOrderStatus` |
+| POST | /goods-receipts | `purchases.receive` (branch) **Idem.** | Goods bought without an order: `{ branchId, supplierId, notes?, items: [{ ingredientId, unit, quantity, unitPrice }] }` |
+| GET | /goods-receipts | `purchases.read` (branch) | `branchId`, `supplierId?`, `purchaseOrderId?`; each with `totalValue` |
+| GET | /goods-receipts/:id | `purchases.read` | |
+| POST | /supplier-invoices | `supplier_payments.create` (branch) **Idem.** | `{ branchId, supplierId, purchaseOrderId?, goodsReceiptIds?, invoiceNumber, invoiceDate, dueDate?, subtotal, taxTotal }`. Total = subtotal + tax. Due date defaults to invoice date + the supplier's payment terms. `DUPLICATE_SUPPLIER_INVOICE`, `GRN_ALREADY_INVOICED` |
+| GET | /supplier-invoices | `purchases.read` (branch) | `branchId`, `supplierId?`, `status?`, `overdue?`; each with `outstanding`, `isOverdue` |
+| GET | /supplier-invoices/:id | `purchases.read` | With payments and goods receipts |
+| POST | /supplier-invoices/:id/cancel | `supplier_payments.create` | `{ reason }`. Only with nothing paid (`INVOICE_HAS_PAYMENTS`); frees its goods receipts |
+| POST | /supplier-payments | `supplier_payments.create` **Idem.** | `{ supplierInvoiceId, amount, method, reference? }`. More than outstanding → `422 AMOUNT_EXCEEDS_OUTSTANDING`; paid or cancelled bill → `INVOICE_NOT_PAYABLE`. Returns `{ payment, invoice }` |
+| GET | /supplier-payments | `purchases.read` (branch) | `branchId`, `supplierId?` |
+
+Phase 5 error codes: `INVALID_BASE_UNIT`, `INVALID_UNIT`, `UNIT_MISMATCH`, `INVALID_QUANTITY`,
+`INVALID_INGREDIENT`, `INGREDIENT_INACTIVE`, `INGREDIENT_IN_USE`, `INGREDIENT_HAS_STOCK`,
+`INSUFFICIENT_STOCK`, `DUPLICATE_LINE`, `INVALID_YIELD`, `RESTOCK_NEEDS_CREDIT_NOTE`,
+`SUPPLIER_INACTIVE`, `SUPPLIER_IN_USE`, `PO_NOT_EDITABLE`, `PO_NOT_DRAFT`, `PO_NOT_CANCELLABLE`,
+`PO_NOT_RECEIVABLE`, `INVALID_PO_ITEM`, `OVER_RECEIPT`, `INVALID_PURCHASE_ORDER`,
+`INVALID_GOODS_RECEIPT`, `GRN_ALREADY_INVOICED`, `DUPLICATE_SUPPLIER_INVOICE`, `INVALID_DUE_DATE`,
+`INVOICE_CANCELLED`, `INVOICE_HAS_PAYMENTS`, `INVOICE_NOT_PAYABLE`, `AMOUNT_EXCEEDS_OUTSTANDING`,
+`DUPLICATE_PREFIX`.
 
 ## Planned contracts (later phases)
 
 These fix names and shapes now so the frontend and backend can be built against them. Details
 may be refined in each phase's PR.
-
-### Phase 5 – Inventory and purchasing
-```
-GET    /inventory?branchId=        GET /inventory/low-stock      GET /inventory/movements
-POST   /inventory/adjustments      POST /inventory/wastage
-PUT    /recipes/:productId         { items: [{ ingredientId, quantity, unitId, wastagePercent }] }
-CRUD   /suppliers
-POST   /purchase-orders            POST /purchase-orders/:id/approve
-POST   /purchase-orders/:id/receipts   partial deliveries → stock movements
-POST   /supplier-invoices          POST /supplier-payments (Idempotency-Key)
-```
 
 ### Phase 6 – Expenses, employees, shifts
 ```

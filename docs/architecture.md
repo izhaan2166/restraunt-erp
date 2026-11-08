@@ -91,19 +91,19 @@ authorization policy on every route, and tests. Controllers only translate HTTP 
 | users | 1 ✅ | users | Accounts, role assignment with anti-escalation |
 | organizations / branches | 1 ✅ | organizations, branches, branch_settings | Tenant and outlet details, GSTIN, state codes |
 | audit | 1 ✅ | audit_logs | Append-only record of sensitive actions |
-| menu, categories, products | 2 | categories, products, product_variants, modifier_groups, modifiers, branch_product_prices, combo_items | Menu, variants, add-ons, branch pricing |
-| tables | 2 | restaurant_tables, table_sessions | Floor plan, occupancy, transfer/merge |
-| orders, order items | 3 | orders, order_items, order_item_modifiers, order_status_history | Order lifecycle state machine |
-| billing, invoices, payments, taxes, discounts | 3 | invoices, invoice_items, payments, payment_allocations, refunds, credit_notes, tax_rates, discounts, applied_discounts, document_sequences | GST computation, invoice numbering, split/partial payments, refunds |
-| kot | 4 | kitchen_stations, kitchen_tickets, kitchen_ticket_items | Kitchen tickets per station, item-level status |
-| notifications / realtime | 4 | notifications | WebSocket gateway, event outbox |
-| inventory, recipes, stock movements | 5 | units, ingredients, inventory_balances, stock_movements, stock_adjustments, wastage_records, recipes, recipe_items | Ingredient ledger, BOM deduction |
-| suppliers, purchase orders | 5 | suppliers, purchase_orders, purchase_order_items, goods_receipts, goods_receipt_items, supplier_invoices, supplier_payments | Purchasing and receiving |
+| menu, categories, products | 2 ✅ | categories, products, product_variants, modifier_groups, modifiers, branch_product_prices, combo_items | Menu, variants, add-ons, branch pricing |
+| tables | 2 ✅ | restaurant_tables, table_sessions | Floor plan, occupancy, transfer/merge |
+| orders, order items | 3 ✅ | orders, order_items, order_item_modifiers, order_status_history | Order lifecycle state machine |
+| billing, invoices, payments, taxes, discounts | 3 ✅ | invoices, invoice_items, payments, payment_allocations, refunds, credit_notes, tax_rates, discounts, applied_discounts, document_sequences | GST computation, invoice numbering, split/partial payments, refunds |
+| kot | 4 ✅ | kitchen_stations, kitchen_tickets, kitchen_ticket_items | Kitchen tickets per station, item-level status |
+| notifications / realtime | 4 ✅ | notifications | WebSocket gateway, event outbox |
+| inventory, recipes, stock movements | 5 ✅ | units, ingredients, inventory_balances, stock_movements, stock_adjustments, wastage_records, recipes, recipe_items | Ingredient ledger, BOM deduction |
+| suppliers, purchase orders | 5 ✅ | suppliers, purchase_orders, purchase_order_items, goods_receipts, goods_receipt_items, supplier_invoices, supplier_payments | Purchasing and receiving |
 | expenses | 6 | expense_categories, expenses | Expense records |
 | employees, attendance | 6 | employees, attendance, employee_shifts | Staff profiles, attendance |
 | shifts (cash) | 6 | cash_sessions, cash_movements | Drawer open/close and reconciliation |
 | reports | 7 | (read models) | Sales, GST, P&L, inventory, exports |
-| idempotency | 3 | idempotency_keys | Replay-safe POSTs |
+| idempotency | 3 ✅ | idempotency_keys | Replay-safe POSTs |
 
 The whole schema is created in Phase 1 so relationships are designed once; later phases add
 services and, where needed, additive migrations.
@@ -241,7 +241,7 @@ sequenceDiagram
 - **Authorization.** The socket.io handshake (`path: /realtime`, `auth.token`) checks the access token
   and session like a REST call. `subscribe { branchId }` joins only the topics the caller may read in
   that branch: `orders` (orders.read), `kitchen` (kot.read), `tables` (tables.read), `payments`
-  (payments.read). The socket is closed when the token expires (`session_expired`) and within a
+  (payments.read), `inventory` (inventory.read). The socket is closed when the token expires (`session_expired`) and within a
   minute of the session being revoked.
 - **Recovery.** Each event carries `id` (= `seq`), the entity id and, where it has one, its
   `version`. Clients ignore ids they already processed. After a reconnect they subscribe with
@@ -250,6 +250,25 @@ sequenceDiagram
   (`GET /orders?updatedSince=`, `GET /kot?updatedSince=`, the floor plan).
 - **Source of truth.** Events say what changed with a small summary; screens read details through
   the REST API. PostgreSQL stays authoritative.
+
+## 9a. Inventory (Phase 5)
+
+- **Ledger first.** Every stock change is one row in `stock_movements` (append-only, enforced by a
+  trigger) carrying a unique `dedupe_key` for the business event that caused it, and the branch
+  balance after it. `inventory_balances` holds the running quantity and weighted average cost and
+  is updated in the same transaction under a row lock, so the balance always equals the sum of the
+  ledger and parallel changes queue up.
+- **Sales.** Order changes call `syncOrderConsumption`, which works out what the order should have
+  consumed under the branch's `stockDeductionPolicy` and posts only the difference. Repeating a call
+  changes nothing; reopening or voiding reverses. Refunds with restock post reversals keyed by the
+  credit note line.
+- **Purchasing.** Goods receipts post `PURCHASE_RECEIPT` movements at the price before GST (input
+  tax credit) converted to the base unit; the purchase order row is locked while a delivery is
+  recorded so two deliveries cannot over-receive. Supplier bills and payments lock the bill row.
+- **Alerts.** A trigger on `inventory_balances` emits `inventory.low_stock` / `inventory.restocked`
+  through the realtime outbox only when the minimum level is crossed, and writes a notification.
+
+Rules in plain words: [inventory.md](inventory.md).
 
 ## 10. Errors, logging and observability
 

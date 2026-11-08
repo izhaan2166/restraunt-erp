@@ -20,6 +20,7 @@ import {
 import { EDITABLE_STATUSES, canTransition, isFinal, nextStatuses } from './order-state';
 import { branchBilling, buildItems, insertItems, recomputeOrder } from './order-pricing';
 import { orderProgress, refreshTickets } from '../kitchen/kitchen-state';
+import { assertStockFor, syncOrderConsumption } from '../inventory/stock';
 
 type Tx = Prisma.TransactionClient;
 const Dec = Prisma.Decimal;
@@ -193,6 +194,7 @@ export class OrdersService {
         },
       });
       const { result } = await recomputeOrder(tx, id);
+      await syncOrderConsumption(tx, actor.userId, id);
       if (touchedTickets.length) {
         await refreshTickets(tx, touchedTickets);
         // Taking back the last unfinished item can leave everything else ready.
@@ -375,6 +377,7 @@ export class OrdersService {
         data: { status: 'CANCELLED', cancelledAt: now, cancelledById: actor.userId, cancelReason: reason, version: { increment: 1 } },
       });
       await tx.orderStatusHistory.create({ data: { orderId: id, fromStatus: order.status, toStatus: 'CANCELLED', reason, changedById: actor.userId } });
+      await syncOrderConsumption(tx, actor.userId, id);
       await this.log(tx, actor, order, 'order.cancelled', { status: order.status, grandTotal: order.grandTotal }, { status: 'CANCELLED', reason }, meta);
     });
     return this.get(actor, id);
@@ -494,6 +497,7 @@ export class OrdersService {
       },
     });
     await tx.orderStatusHistory.create({ data: { orderId: order.id, fromStatus: order.status, toStatus: to, reason, changedById: actor.userId } });
+    await syncOrderConsumption(tx, actor.userId, order.id);
   }
 
   /** One kitchen ticket per station for active items not yet sent. */
@@ -503,6 +507,10 @@ export class OrdersService {
       orderBy: { createdAt: 'asc' },
     });
     if (!pending.length) return [];
+    const policy = await tx.branchSettings.findUnique({ where: { branchId: order.branchId }, select: { allowNegativeStock: true, stockDeductionPolicy: true } });
+    if (policy?.allowNegativeStock === false && policy.stockDeductionPolicy !== 'NONE') {
+      await assertStockFor(tx, order.organizationId, order.branchId, pending);
+    }
     const stations = await tx.kitchenStation.findMany({ where: { branchId: order.branchId, isActive: true } });
     const groups = new Map<string, typeof pending>();
     for (const it of pending) {
@@ -527,6 +535,7 @@ export class OrdersService {
       });
       created.push({ ticketNumber, station: code || null, items: items.length });
     }
+    await syncOrderConsumption(tx, actor.userId, order.id);
     return created;
   }
 

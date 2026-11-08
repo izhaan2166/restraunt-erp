@@ -55,6 +55,7 @@ export const PERMISSIONS = {
   'discounts.manage': 'Configure discount schemes',
   // Inventory & purchasing
   'inventory.read': 'View stock levels and movements',
+  'inventory.manage': 'Create and edit ingredients and minimum stock levels',
   'inventory.adjust': 'Record manual stock adjustments',
   'inventory.wastage': 'Record wastage and damaged stock',
   'recipes.manage': 'Configure recipes / bill of materials',

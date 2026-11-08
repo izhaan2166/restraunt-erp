@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, Refund } from '@prisma/client';
 import { requireInBranch } from '../../common/auth/branch-access';
 import { Paginated } from '../../common/dto/pagination';
 import { Errors } from '../../common/errors/app-error';
@@ -10,6 +10,7 @@ import type { AuthPrincipal } from '../auth/principal';
 import { branchBilling, recomputeOrder } from '../orders/order-pricing';
 import { OrdersService } from '../orders/orders.service';
 import { financialYear, nextNumber } from '../sequences/sequences';
+import { restockForRefund } from '../inventory/stock';
 import {
   BuyerDto,
   CheckoutDto,
@@ -301,6 +302,9 @@ export class BillingService {
       if (amount.gt(refundable)) {
         throw Errors.unprocessable('REFUND_EXCEEDS_PAYMENT', `At most ₹${refundable.toFixed(2)} can still be refunded from this payment`, { refundable: refundable.toFixed(2) });
       }
+      if (dto.restock && !dto.creditNoteId) {
+        throw Errors.badRequest('RESTOCK_NEEDS_CREDIT_NOTE', 'Restocking puts back the credited items: create a credit note for them and refund against it');
+      }
       if (dto.creditNoteId) {
         const cn = await tx.creditNote.findFirst({ where: { id: dto.creditNoteId, invoiceId } });
         if (!cn) throw Errors.badRequest('INVALID_CREDIT_NOTE', 'Credit note not found on this invoice');
@@ -327,7 +331,7 @@ export class BillingService {
           processedById: actor.userId,
         },
       });
-      if (canApprove) await this.applyRefund(tx, invoiceId, amount);
+      if (canApprove) await this.applyRefund(tx, actor, refund);
       await this.audit.record(
         {
           organizationId: actor.organizationId,
@@ -358,8 +362,8 @@ export class BillingService {
       if (approve && fresh.processedById === actor.userId) {
         throw Errors.forbidden('SELF_APPROVAL', 'A refund must be approved by someone other than the person who requested it');
       }
-      await tx.refund.update({ where: { id: refundId }, data: { status: approve ? 'COMPLETED' : 'VOIDED', approvedById: actor.userId } });
-      if (approve) await this.applyRefund(tx, fresh.invoiceId, fresh.amount);
+      const decided = await tx.refund.update({ where: { id: refundId }, data: { status: approve ? 'COMPLETED' : 'VOIDED', approvedById: actor.userId } });
+      if (approve) await this.applyRefund(tx, actor, decided);
       await this.audit.record(
         {
           organizationId: actor.organizationId,
@@ -378,9 +382,10 @@ export class BillingService {
     return this.prisma.refund.findUniqueOrThrow({ where: { id: refundId } });
   }
 
-  private async applyRefund(tx: Tx, invoiceId: string, amount: Prisma.Decimal) {
-    await tx.invoice.update({ where: { id: invoiceId }, data: { refundedAmount: { increment: amount } } });
-    await syncSettlement(tx, invoiceId);
+  private async applyRefund(tx: Tx, actor: AuthPrincipal, refund: Refund) {
+    await tx.invoice.update({ where: { id: refund.invoiceId }, data: { refundedAmount: { increment: refund.amount } } });
+    await syncSettlement(tx, refund.invoiceId);
+    await restockForRefund(tx, actor.userId, refund);
   }
 
   // ───────────── Credit notes & cancellation ─────────────

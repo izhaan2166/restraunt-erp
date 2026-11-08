@@ -5,7 +5,7 @@ import { AuthenticatedOnly, CurrentUser, RequirePermissions } from '../../common
 import { requestMeta } from '../../common/http/request-meta';
 import type { AuthPrincipal } from '../auth/principal';
 import { BranchesService } from './branches.service';
-import { CreateBranchDto, UpdateBranchDto } from './dto/branch.dto';
+import { CreateBranchDto, UpdateBranchDto, UpdateBranchSettingsDto } from './dto/branch.dto';
 
 @ApiTags('branches')
 @ApiBearerAuth()
@@ -42,5 +42,23 @@ export class BranchesController {
     @Req() req: Request,
   ) {
     return this.branches.update(user, branchId, dto, requestMeta(req));
+  }
+
+  @Get(':branchId/settings')
+  @RequirePermissions('settings.read', 'branch')
+  settings(@CurrentUser() user: AuthPrincipal, @Param('branchId', ParseUUIDPipe) branchId: string) {
+    return this.branches.settings(user, branchId);
+  }
+
+  @Patch(':branchId/settings')
+  @RequirePermissions('settings.update', 'branch')
+  @ApiOperation({ summary: 'Change tax mode, rounding, document prefix, stock deduction and negative-stock rules' })
+  updateSettings(
+    @CurrentUser() user: AuthPrincipal,
+    @Param('branchId', ParseUUIDPipe) branchId: string,
+    @Body() dto: UpdateBranchSettingsDto,
+    @Req() req: Request,
+  ) {
+    return this.branches.updateSettings(user, branchId, dto, requestMeta(req));
   }
 }

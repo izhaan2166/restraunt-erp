@@ -67,6 +67,7 @@ export const DEFAULT_ROLES: readonly RoleTemplate[] = [
       'refunds.approve',
       'credit_notes.create',
       'inventory.read',
+      'inventory.manage',
       'inventory.adjust',
       'inventory.wastage',
       'recipes.manage',
@@ -150,6 +151,7 @@ export const DEFAULT_ROLES: readonly RoleTemplate[] = [
     permissions: [
       'menu.read',
       'inventory.read',
+      'inventory.manage',
       'inventory.adjust',
       'inventory.wastage',
       'recipes.manage',

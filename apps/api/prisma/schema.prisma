@@ -1347,6 +1347,7 @@ model PurchaseOrder {
   taxTotal       Decimal             @default(0) @map("tax_total") @db.Decimal(14, 2)
   total          Decimal             @default(0) @db.Decimal(14, 2)
   notes          String?
+  cancelReason   String?             @map("cancel_reason")
   createdById    String              @map("created_by_id") @db.Uuid
   approvedById   String?             @map("approved_by_id") @db.Uuid
   createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
@@ -1374,6 +1375,7 @@ model PurchaseOrderItem {
   unitPrice        Decimal @map("unit_price") @db.Decimal(14, 4)
   taxRate          Decimal @default(0) @map("tax_rate") @db.Decimal(6, 3)
   lineTotal        Decimal @map("line_total") @db.Decimal(14, 2)
+  lineNo           Int     @default(0) @map("line_no")
 
   purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
 

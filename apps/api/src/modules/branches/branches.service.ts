@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { Errors } from '../../common/errors/app-error';
 import type { RequestMeta } from '../../common/http/request-meta';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import type { AuthPrincipal } from '../auth/principal';
-import { CreateBranchDto, UpdateBranchDto } from './dto/branch.dto';
+import { CreateBranchDto, UpdateBranchDto, UpdateBranchSettingsDto } from './dto/branch.dto';
 
 @Injectable()
 export class BranchesService {
@@ -69,6 +70,38 @@ export class BranchesService {
           after,
           meta,
         },
+        tx,
+      );
+      return after;
+    });
+  }
+
+  async settings(actor: AuthPrincipal, branchId: string) {
+    const branch = await this.get(actor, branchId);
+    return branch.settings ?? this.prisma.branchSettings.create({ data: { branchId, organizationId: actor.organizationId, invoicePrefix: branch.code.slice(0, 10) } });
+  }
+
+  async updateSettings(actor: AuthPrincipal, branchId: string, dto: UpdateBranchSettingsDto, meta: RequestMeta) {
+    const before = await this.settings(actor, branchId);
+    return this.prisma.$transaction(async (tx) => {
+      if (dto.invoicePrefix && dto.invoicePrefix !== before.invoicePrefix) {
+        const clash = await tx.branchSettings.findFirst({ where: { organizationId: actor.organizationId, invoicePrefix: dto.invoicePrefix } });
+        if (clash) throw Errors.conflict('DUPLICATE_PREFIX', `Another branch already numbers its documents with ${dto.invoicePrefix}`);
+      }
+      const after = await tx.branchSettings.update({
+        where: { branchId },
+        data: {
+          taxPricingMode: dto.taxPricingMode,
+          roundingMode: dto.roundingMode,
+          invoicePrefix: dto.invoicePrefix,
+          stockDeductionPolicy: dto.stockDeductionPolicy,
+          allowNegativeStock: dto.allowNegativeStock,
+          serviceChargePercent: dto.serviceChargePercent === undefined ? undefined : new Prisma.Decimal(dto.serviceChargePercent),
+          maxCashierDiscountPct: dto.maxCashierDiscountPct === undefined ? undefined : new Prisma.Decimal(dto.maxCashierDiscountPct),
+        },
+      });
+      await this.audit.record(
+        { organizationId: actor.organizationId, branchId, actorUserId: actor.userId, action: 'branch.settings_updated', entityType: 'branch_settings', entityId: branchId, before, after, meta },
         tx,
       );
       return after;
