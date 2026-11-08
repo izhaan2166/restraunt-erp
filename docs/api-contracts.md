@@ -150,7 +150,7 @@ a replay returns the stored response with `Idempotent-Replayed: true`.
 
 Invoices are issued final in one step (number, seller snapshot, lines, GST), so there is no separate
 finalize endpoint. Once final, an invoice cannot be edited (database triggers); corrections are made
-with credit notes. Invoice PDF arrives with reports in Phase 7.
+with credit notes. `GET /invoices/:id/pdf` prints the GST tax invoice (Phase 7).
 
 Order state machine (server-enforced): `NEW → CONFIRMED → PREPARING → READY → SERVED → COMPLETED`;
 takeaway `READY → PICKED_UP → COMPLETED`; delivery `READY → OUT_FOR_DELIVERY → DELIVERED → COMPLETED`.
@@ -351,19 +351,35 @@ Phase 6 error codes: `SHIFT_ALREADY_OPEN`, `SHIFT_CLOSED`, `NO_OPEN_SHIFT`, `INS
 `ALREADY_CLOCKED_IN`, `ALREADY_CLOCKED_OUT`, `NOT_CLOCKED_IN`, `CLOCK_IN_TOO_OLD`, `CLOCK_IN_REQUIRED`,
 `TIMES_NOT_ALLOWED`, `INVALID_TIMES`, `RANGE_TOO_LONG`.
 
-## Planned contracts (later phases)
+## Implemented in Phase 7
 
-These fix names and shapes now so the frontend and backend can be built against them. Details
-may be refined in each phase's PR.
+Definitions of every figure, in plain words: [reports.md](reports.md).
 
-### Phase 7 – Dashboard and reports
-```
-GET /dashboard?branchId=&range=today|yesterday|this_week|this_month|custom&from=&to=
-GET /reports/sales  /reports/products  /reports/categories  /reports/gst  /reports/discounts
-GET /reports/refunds  /reports/cancellations  /reports/payments  /reports/inventory
-GET /reports/wastage  /reports/purchases  /reports/expenses  /reports/profit-loss
-GET /reports/branches  /reports/employees            ?format=csv|pdf for exports
-```
-Report definitions: gross sales = Σ line subtotals; discounts; net sales = gross − discounts;
-tax collected = CGST + SGST + IGST; refunds by credit note date; collected payments = Σ completed
-payments − refunds; estimated profit = net sales − COGS (recipe cost) − expenses.
+All reports take `from` and `to` (India business dates, inclusive, at most five years:
+`RANGE_TOO_LONG`, `INVALID_RANGE`), an optional `branchId` (omitted = every branch where you hold the
+report's permission; a branch where you have no role → 404) and `format=json|csv|pdf` (default json).
+JSON answers `{ report, title, from, to, branches, summary: {…}, <table>: [rows…], notes? }`; money is
+a string with 2 decimals. CSV (UTF-8 with BOM) and PDF are downloads named `<report>_<from>_<to>.<ext>`.
+Lists of individual records stop at 5000 rows (`truncated: [table…]`).
+
+| Method | Path | Permission | Tables |
+|---|---|---|---|
+| GET | /dashboard | `dashboard.read` | `range=today\|yesterday\|this_week\|this_month\|custom` (`from`, `to` for custom: `RANGE_REQUIRED`), `branchId?`. Returns `sales`, `orders`, `expenses`, `estimatedProfit`, `paymentMethods`, `bestSellers`, `lowStock`, `recentTransactions`, `branchPerformance`, `hidden` (figures the viewer may not see are `null` and listed here) |
+| GET | /reports/sales | `reports.sales` | `groupBy=day\|week\|month\|year` → `rows` |
+| GET | /reports/products | `reports.sales` | `rows` (per product, net of credit notes) |
+| GET | /reports/categories | `reports.sales` | `rows` |
+| GET | /reports/gst | `reports.gst` | `byRate`, `byHsn`, `byGstin`, `b2b` |
+| GET | /reports/discounts | `reports.sales` | `byUser`, `byType`, `invoices` |
+| GET | /reports/refunds | `reports.financial` | `byMethod`, `rows` |
+| GET | /reports/cancellations | `reports.sales` | `byUser`, `orders`, `items`, `invoices` |
+| GET | /reports/payments | `reports.financial` | `byMethod`, `byDay` |
+| GET | /reports/inventory | `reports.inventory` | `rows` (opening, received, consumed, wasted, adjusted, transferred, closing, values) |
+| GET | /reports/wastage | `reports.inventory` | `byIngredient`, `rows` |
+| GET | /reports/purchases | `reports.inventory` or `reports.financial` | `bySupplier`, `byIngredient` |
+| GET | /reports/expenses | `reports.financial` | `byCategory`, `byMethod`, `byDay`, `rows` |
+| GET | /reports/profit-loss | `reports.financial` | `statement`, `byBranch` |
+| GET | /reports/branches | `reports.sales` | `rows` |
+| GET | /reports/employees | `reports.employee` | `rows` |
+| GET | /invoices/:id/pdf | `invoices.read` | The GST tax invoice as `application/pdf` |
+
+Phase 7 error codes: `RANGE_TOO_LONG`, `RANGE_REQUIRED`, `INVALID_RANGE`.

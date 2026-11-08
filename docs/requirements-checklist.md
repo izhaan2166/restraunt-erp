@@ -2,7 +2,7 @@
 
 Status: ✅ done and tested · 🟡 designed (schema/contract in place), behaviour in a later phase · ⏳ not started · ❌ failing
 
-_Last updated: Phase 6._
+_Last updated: Phase 7._
 
 ## Phase 1 – Architecture, schema, authentication, RBAC
 
@@ -85,7 +85,7 @@ _Last updated: Phase 6._
 | Table becomes BILL_PENDING while money is owed and OCCUPIED once paid | ✅ | billing e2e |
 | Audit log for invoices, payments, refunds, credit notes, discounts, cancels | ✅ | services write `audit_logs`; e2e checks |
 | Orders and invoices isolated per organization/branch | ✅ | orders & billing e2e |
-| Invoice PDF / print | 🟡 | Phase 7 (reports and exports) |
+| Invoice PDF / print | ✅ | Phase 7, `GET /invoices/:id/pdf` (reports e2e) |
 | Cash payments tied to a cash shift | ✅ | Phase 6, `test/cash.e2e-spec.ts` |
 | Stock deduction on sale and restock on refund | ✅ | Phase 5, `test/inventory.e2e-spec.ts` |
 | Live order updates to POS and kitchen screens | ✅ | Phase 4 realtime events |
@@ -140,7 +140,7 @@ _Last updated: Phase 6._
 | Audit log for every inventory and purchasing change | ✅ | services write `audit_logs`; purchasing e2e |
 | Isolation per organization and branch | ✅ | inventory & purchasing e2e |
 | Stock transfers between branches | 🟡 | Schema ready (TRANSFER_IN/OUT); API later |
-| Inventory and purchase reports | 🟡 | Phase 7 |
+| Inventory and purchase reports | ✅ | Phase 7, `test/reports.e2e-spec.ts` |
 | Inventory screens (frontend) | 🟡 | Next.js frontend |
 
 ## Phase 6 – Expenses, employees, attendance and cash shifts
@@ -171,10 +171,31 @@ _Last updated: Phase 6._
 | Split shifts on one day | 🟡 | One attendance span per day; a manager records the total |
 | Staff, expense and cash screens (frontend) | 🟡 | Next.js frontend |
 
+## Phase 7 – Dashboard, reports and exports
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Dashboard: sales, orders (completed/pending/cancelled), average order value, gross and net revenue, expenses, estimated profit | ✅ | `test/reports.e2e-spec.ts` |
+| Dashboard: payment methods, best sellers, low stock, recent transactions, branch performance | ✅ | reports e2e |
+| Dashboard filters: today, yesterday, this week, this month, custom | ✅ | reports e2e, `reports.spec.ts` |
+| All figures from database records (no stored or typed-in statistics) | ✅ | reports e2e compares with table sums |
+| Daily, weekly, monthly and annual sales | ✅ | reports e2e |
+| Product-wise and category-wise sales | ✅ | reports e2e |
+| GST collected (by rate, HSN/SAC, GSTIN, B2B) | ✅ | reports e2e |
+| Discounts, refunds, cancelled orders, payment methods | ✅ | reports e2e |
+| Inventory consumption, wastage, supplier purchases, expenses | ✅ | reports e2e |
+| Estimated profit (net sales − recipe cost − wastage − expenses) | ✅ | reports e2e |
+| Branch performance and employee performance | ✅ | reports e2e |
+| Consistent definitions: gross sales, discounts, taxes, refunds, net sales, collected payments | ✅ | [reports.md](reports.md); one shared calculation (`facts.ts`) |
+| Reports reconcile: products add up to net sales, ledger opening + movements = closing | ✅ | reports e2e |
+| CSV and PDF exports for every report; invoice PDF | ✅ | reports e2e |
+| Branch and organization isolation; financial figures hidden without permission | ✅ | reports e2e |
+| Report screens (frontend) | 🟡 | Next.js frontend |
+| Heavy reports in background jobs / cached | 🟡 | Run on request for now; Phase 8 load tests decide |
+
 ## Later phases
 
 | Phase | Area | Status |
 |---|---|---|
-| 7 | Dashboard, reports, CSV/PDF exports | ⏳ |
 | 8 | Hardening, load tests, monitoring, deployment & backup runbooks, admin/user docs | ⏳ |
 | 2+ | Next.js frontend | ⏳ |
