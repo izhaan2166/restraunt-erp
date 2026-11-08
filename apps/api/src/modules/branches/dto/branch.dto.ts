@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { RoundingMode, StockDeductionPolicy, TaxPricingMode } from '@prisma/client';
+import { IsBoolean, IsEnum, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
 
@@ -31,4 +32,38 @@ export class CreateBranchDto {
 
 export class UpdateBranchDto extends PartialType(CreateBranchDto) {
   @ApiPropertyOptional() @IsOptional() @IsBoolean() isActive?: boolean;
+}
+
+export class UpdateBranchSettingsDto {
+  @ApiPropertyOptional({ enum: TaxPricingMode, description: 'Menu prices include GST (INCLUSIVE) or GST is added on top (EXCLUSIVE)' })
+  @IsOptional()
+  @IsEnum(TaxPricingMode)
+  taxPricingMode?: TaxPricingMode;
+
+  @ApiPropertyOptional({ enum: RoundingMode }) @IsOptional() @IsEnum(RoundingMode) roundingMode?: RoundingMode;
+
+  @ApiPropertyOptional({ example: 'BLR1', description: 'Starts invoice, credit note, PO and GRN numbers; a new prefix starts a new series' })
+  @IsOptional()
+  @Matches(/^[A-Z0-9]{2,10}$/, { message: 'invoicePrefix must be 2–10 chars of A–Z or 0–9' })
+  invoicePrefix?: string;
+
+  @ApiPropertyOptional({ enum: StockDeductionPolicy, description: 'When sold items take ingredients out of stock' })
+  @IsOptional()
+  @IsEnum(StockDeductionPolicy)
+  stockDeductionPolicy?: StockDeductionPolicy;
+
+  @ApiPropertyOptional({ description: 'false: items cannot be sent to the kitchen without enough stock' })
+  @IsOptional()
+  @IsBoolean()
+  allowNegativeStock?: boolean;
+
+  @ApiPropertyOptional({ example: '5' })
+  @IsOptional()
+  @Matches(/^(100(\.0{1,3})?|[0-9]{1,2}(\.[0-9]{1,3})?)$/, { message: 'serviceChargePercent must be between 0 and 100' })
+  serviceChargePercent?: string;
+
+  @ApiPropertyOptional({ example: '10' })
+  @IsOptional()
+  @Matches(/^(100(\.0{1,3})?|[0-9]{1,2}(\.[0-9]{1,3})?)$/, { message: 'maxCashierDiscountPct must be between 0 and 100' })
+  maxCashierDiscountPct?: string;
 }
