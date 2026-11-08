@@ -43,6 +43,7 @@ export const DEFAULT_ROLES: readonly RoleTemplate[] = [
       'roles.read',
       'menu.read',
       'menu.manage',
+      'menu.availability.update',
       'tables.read',
       'tables.manage',
       'tables.operate',
@@ -137,7 +138,7 @@ export const DEFAULT_ROLES: readonly RoleTemplate[] = [
     key: 'KITCHEN_STAFF',
     name: 'Kitchen Staff',
     description: 'Kitchen tickets and preparation status.',
-    permissions: ['kot.read', 'kot.update_status', 'attendance.self', 'notifications.read'],
+    permissions: ['menu.read', 'menu.availability.update', 'kot.read', 'kot.update_status', 'attendance.self', 'notifications.read'],
   },
   {
     key: 'INVENTORY_MANAGER',

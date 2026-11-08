@@ -469,23 +469,26 @@ model PasswordResetToken {
 // ───────────────────────────── Tables & floor ─────────────────────────────
 
 model RestaurantTable {
-  id             String      @id @default(uuid()) @db.Uuid
-  organizationId String      @map("organization_id") @db.Uuid
-  branchId       String      @map("branch_id") @db.Uuid
-  label          String      @db.VarChar(20)
-  area           String?     @db.VarChar(50)
-  capacity       Int
-  status         TableStatus @default(AVAILABLE)
-  shape          String      @default("RECT") @db.VarChar(10)
-  posX           Int         @default(0) @map("pos_x")
-  posY           Int         @default(0) @map("pos_y")
-  width          Int         @default(80)
-  height         Int         @default(80)
-  isActive       Boolean     @default(true) @map("is_active")
-  version        Int         @default(0)
-  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt      DateTime?   @map("deleted_at") @db.Timestamptz(3)
+  id               String      @id @default(uuid()) @db.Uuid
+  organizationId   String      @map("organization_id") @db.Uuid
+  branchId         String      @map("branch_id") @db.Uuid
+  label            String      @db.VarChar(20)
+  area             String?     @db.VarChar(50)
+  capacity         Int
+  status           TableStatus @default(AVAILABLE)
+  shape            String      @default("RECT") @db.VarChar(10)
+  posX             Int         @default(0) @map("pos_x")
+  posY             Int         @default(0) @map("pos_y")
+  width            Int         @default(80)
+  height           Int         @default(80)
+  isActive         Boolean     @default(true) @map("is_active")
+  reservationName  String?     @map("reservation_name")
+  reservationPhone String?     @map("reservation_phone") @db.VarChar(16)
+  reservedUntil    DateTime?   @map("reserved_until") @db.Timestamptz(3)
+  version          Int         @default(0)
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt        DateTime?   @map("deleted_at") @db.Timestamptz(3)
 
   sessions TableSession[]
 
@@ -598,6 +601,7 @@ model Product {
   isCombo        Boolean   @default(false) @map("is_combo")
   isActive       Boolean   @default(true) @map("is_active")
   isAvailable    Boolean   @default(true) @map("is_available") // temporary 86
+  sortOrder      Int       @default(0) @map("sort_order")
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
@@ -690,8 +694,9 @@ model BranchProductPrice {
   branchId    String   @map("branch_id") @db.Uuid
   productId   String   @map("product_id") @db.Uuid
   variantId   String?  @map("variant_id") @db.Uuid
-  price       Decimal  @db.Decimal(14, 2)
+  price       Decimal? @db.Decimal(14, 2) // NULL = keep the product/variant price, override availability only
   isAvailable Boolean  @default(true) @map("is_available")
+  updatedById String?  @map("updated_by_id") @db.Uuid
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   product Product @relation(fields: [productId], references: [id], onDelete: Cascade)

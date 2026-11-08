@@ -4,7 +4,9 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
+import { resolve } from 'node:path';
 import { Env } from './config/env';
+import { LOCAL_UPLOAD_PREFIX } from './modules/storage/storage.service';
 
 /** Shared HTTP setup used by main.ts and the e2e test harness, so tests exercise the real stack. */
 export function configureApp(app: INestApplication, env: Env): void {
@@ -15,6 +17,21 @@ export function configureApp(app: INestApplication, env: Env): void {
   express.useBodyParser('json', { limit: '1mb' });
 
   app.use(helmet());
+  if (env.STORAGE_DRIVER === 'local') {
+    // Development/self-hosted image serving. Product images are public menu content; the
+    // file names are random UUIDs and only sniffed JPEG/PNG/WebP files are ever written.
+    express.useStaticAssets(resolve(env.UPLOAD_DIR), {
+      prefix: LOCAL_UPLOAD_PREFIX,
+      index: false,
+      dotfiles: 'deny',
+      fallthrough: false,
+      setHeaders: (res) => {
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      },
+    });
+  }
   app.use(cookieParser());
   app.enableCors({
     origin: env.CORS_ORIGINS,

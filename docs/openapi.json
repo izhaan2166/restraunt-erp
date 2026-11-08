@@ -941,11 +941,1649 @@
           "users"
         ]
       }
+    },
+    "/api/v1/tax-rates": {
+      "get": {
+        "operationId": "TaxesController_list_v1",
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "taxes"
+        ]
+      },
+      "post": {
+        "operationId": "TaxesController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTaxRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a GST rate (CGST/SGST/IGST are derived from the total rate)",
+        "tags": [
+          "taxes"
+        ]
+      }
+    },
+    "/api/v1/tax-rates/{id}": {
+      "patch": {
+        "operationId": "TaxesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTaxRateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rename, deactivate or end-date a rate. Percentages are immutable.",
+        "tags": [
+          "taxes"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/kitchen-stations": {
+      "get": {
+        "operationId": "KitchenStationsController_list_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "kitchen-stations"
+        ]
+      },
+      "post": {
+        "operationId": "KitchenStationsController_create_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateStationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "kitchen-stations"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/kitchen-stations/{id}": {
+      "patch": {
+        "operationId": "KitchenStationsController_update_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "kitchen-stations"
+        ]
+      }
+    },
+    "/api/v1/menu": {
+      "get": {
+        "operationId": "MenuController_forBranch_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/categories": {
+      "get": {
+        "operationId": "CategoriesController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "post": {
+        "operationId": "CategoriesController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/categories/{id}": {
+      "get": {
+        "operationId": "CategoriesController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "patch": {
+        "operationId": "CategoriesController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "delete": {
+        "operationId": "CategoriesController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/modifier-groups": {
+      "get": {
+        "operationId": "ModifiersController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "post": {
+        "operationId": "ModifiersController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateModifierGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/modifier-groups/{id}": {
+      "get": {
+        "operationId": "ModifiersController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "patch": {
+        "operationId": "ModifiersController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModifierGroupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/modifier-groups/{id}/modifiers": {
+      "post": {
+        "operationId": "ModifiersController_addModifier_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModifierInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/modifier-groups/{id}/modifiers/{modifierId}": {
+      "patch": {
+        "operationId": "ModifiersController_updateModifier_v1",
+        "parameters": [
+          {
+            "name": "modifierId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateModifierDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products": {
+      "get": {
+        "operationId": "ProductsController_list_v1",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25,
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Object"
+                }
+              ]
+            }
+          },
+          {
+            "name": "order",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "desc",
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "isActive",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "post": {
+        "operationId": "ProductsController_create_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}": {
+      "get": {
+        "operationId": "ProductsController_get_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "patch": {
+        "operationId": "ProductsController_update_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "delete": {
+        "operationId": "ProductsController_remove_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}/variants": {
+      "post": {
+        "operationId": "ProductsController_addVariant_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VariantInputDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}/variants/{variantId}": {
+      "patch": {
+        "operationId": "ProductsController_updateVariant_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variantId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateVariantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}/modifier-groups": {
+      "put": {
+        "operationId": "ProductsController_setModifierGroups_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetModifierGroupsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}/combo-items": {
+      "put": {
+        "operationId": "ProductsController_setComboItems_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetComboItemsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}/branch-prices": {
+      "get": {
+        "operationId": "ProductsController_branchPrices_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      },
+      "put": {
+        "operationId": "ProductsController_setBranchPrices_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetBranchPricesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}/availability": {
+      "patch": {
+        "operationId": "ProductsController_setAvailability_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetAvailabilityDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/menu/products/{id}/image": {
+      "post": {
+        "operationId": "ProductsController_uploadImage_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                },
+                "required": [
+                  "image"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "menu"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables": {
+      "get": {
+        "operationId": "TablesController_list_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "area",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      },
+      "post": {
+        "operationId": "TablesController_create_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}": {
+      "get": {
+        "operationId": "TablesController_get_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      },
+      "patch": {
+        "operationId": "TablesController_update_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      },
+      "delete": {
+        "operationId": "TablesController_remove_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/layout": {
+      "put": {
+        "operationId": "TablesController_saveLayout_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLayoutDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/open": {
+      "post": {
+        "operationId": "TablesController_open_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenTableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/close": {
+      "post": {
+        "operationId": "TablesController_close_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/transfer": {
+      "post": {
+        "operationId": "TablesController_transfer_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferTableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/merge": {
+      "post": {
+        "operationId": "TablesController_merge_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MergeTablesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/split": {
+      "post": {
+        "operationId": "TablesController_split_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/reserve": {
+      "post": {
+        "operationId": "TablesController_reserve_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReserveTableDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/reservation": {
+      "delete": {
+        "operationId": "TablesController_unreserve_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
+    },
+    "/api/v1/branches/{branchId}/tables/{id}/service-status": {
+      "patch": {
+        "operationId": "TablesController_setOutOfService_v1",
+        "parameters": [
+          {
+            "name": "branchId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OutOfServiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tables"
+        ]
+      }
     }
   },
   "info": {
     "title": "RestaurantOS API",
-    "description": "",
+    "description": "Restaurant ERP & POS. All responses are `{ data, meta? }`; errors are `{ error: { code, message, details?, requestId } }`.",
     "version": "1.0",
     "contact": {}
   },
@@ -957,6 +2595,11 @@
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "type": "http"
+      },
+      "branch": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Branch-Id"
       }
     },
     "schemas": {
@@ -1144,7 +2787,7 @@
           },
           "name": {
             "type": "string",
-            "example": "Spice Route – Indiranagar"
+            "example": "Spice Route \u2013 Indiranagar"
           },
           "stateCode": {
             "type": "string",
@@ -1183,7 +2826,7 @@
           },
           "name": {
             "type": "string",
-            "example": "Spice Route – Indiranagar"
+            "example": "Spice Route \u2013 Indiranagar"
           },
           "stateCode": {
             "type": "string",
@@ -1242,7 +2885,7 @@
           },
           "password": {
             "type": "string",
-            "description": "Initial password (10–128 chars, letters and digits)"
+            "description": "Initial password (10\u2013128 chars, letters and digits)"
           },
           "roles": {
             "type": "array",
@@ -1272,6 +2915,656 @@
             "description": "false deactivates the user and signs out all their sessions"
           }
         }
+      },
+      "CreateTaxRateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "GST 5% (Restaurant service)"
+          },
+          "rate": {
+            "type": "string",
+            "example": "5",
+            "description": "Total GST rate in percent. CGST and SGST are each half; IGST equals the rate."
+          },
+          "cessRate": {
+            "type": "string",
+            "example": "0"
+          },
+          "effectiveFrom": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "rate"
+        ]
+      },
+      "UpdateTaxRateDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "effectiveTo": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateStationDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "BEV"
+          },
+          "name": {
+            "type": "string",
+            "example": "Beverage Counter"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ]
+      },
+      "UpdateStationDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Starters"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Starters"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ModifierInputDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Extra cheese"
+          },
+          "price": {
+            "type": "string",
+            "example": "40.00"
+          }
+        },
+        "required": [
+          "name",
+          "price"
+        ]
+      },
+      "CreateModifierGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Add-ons"
+          },
+          "minSelect": {
+            "type": "number",
+            "default": 0
+          },
+          "maxSelect": {
+            "type": "number",
+            "default": 1
+          },
+          "modifiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModifierInputDto"
+            }
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateModifierGroupDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Add-ons"
+          },
+          "minSelect": {
+            "type": "number",
+            "default": 0
+          },
+          "maxSelect": {
+            "type": "number",
+            "default": 1
+          }
+        }
+      },
+      "UpdateModifierDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Extra cheese"
+          },
+          "price": {
+            "type": "string",
+            "example": "40.00"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "VariantInputDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Full"
+          },
+          "price": {
+            "type": "string",
+            "example": "320.00"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "price"
+        ]
+      },
+      "ComboItemInputDto": {
+        "type": "object",
+        "properties": {
+          "productId": {
+            "type": "string"
+          },
+          "variantId": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string",
+            "example": "1"
+          }
+        },
+        "required": [
+          "productId",
+          "quantity"
+        ]
+      },
+      "CreateProductDto": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string",
+            "example": "STR-PNR-TIKKA"
+          },
+          "name": {
+            "type": "string",
+            "example": "Paneer Tikka"
+          },
+          "description": {
+            "type": "string"
+          },
+          "basePrice": {
+            "type": "string",
+            "example": "280.00"
+          },
+          "taxRateId": {
+            "type": "string"
+          },
+          "hsnSac": {
+            "type": "string",
+            "example": "996331",
+            "description": "HSN/SAC code (SAC 996331 for restaurant service)"
+          },
+          "isVeg": {
+            "type": "boolean",
+            "default": true
+          },
+          "stationCode": {
+            "type": "string",
+            "example": "MAIN",
+            "description": "Kitchen station code that prepares this item"
+          },
+          "isCombo": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VariantInputDto"
+            }
+          },
+          "modifierGroupIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "comboItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComboItemInputDto"
+            }
+          }
+        },
+        "required": [
+          "categoryId",
+          "sku",
+          "name",
+          "basePrice"
+        ]
+      },
+      "UpdateProductDto": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string",
+            "example": "STR-PNR-TIKKA"
+          },
+          "name": {
+            "type": "string",
+            "example": "Paneer Tikka"
+          },
+          "description": {
+            "type": "string"
+          },
+          "basePrice": {
+            "type": "string",
+            "example": "280.00"
+          },
+          "taxRateId": {
+            "type": "string"
+          },
+          "hsnSac": {
+            "type": "string",
+            "example": "996331",
+            "description": "HSN/SAC code (SAC 996331 for restaurant service)"
+          },
+          "isVeg": {
+            "type": "boolean",
+            "default": true
+          },
+          "stationCode": {
+            "type": "string",
+            "example": "MAIN",
+            "description": "Kitchen station code that prepares this item"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "modifierGroupIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateVariantDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Full"
+          },
+          "price": {
+            "type": "string",
+            "example": "320.00"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SetModifierGroupsDto": {
+        "type": "object",
+        "properties": {
+          "groupIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "groupIds"
+        ]
+      },
+      "SetComboItemsDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ComboItemInputDto"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
+      "BranchPriceOverrideDto": {
+        "type": "object",
+        "properties": {
+          "variantId": {
+            "type": "object",
+            "nullable": true,
+            "description": "null = the product itself (no variant)"
+          },
+          "price": {
+            "type": "object",
+            "nullable": true,
+            "example": "300.00",
+            "description": "null = keep the menu price"
+          },
+          "isAvailable": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "SetBranchPricesDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string"
+          },
+          "overrides": {
+            "description": "Replaces every override of this product in the branch",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BranchPriceOverrideDto"
+            }
+          }
+        },
+        "required": [
+          "branchId",
+          "overrides"
+        ]
+      },
+      "SetAvailabilityDto": {
+        "type": "object",
+        "properties": {
+          "branchId": {
+            "type": "string",
+            "description": "Omit to change availability in every branch"
+          },
+          "isAvailable": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isAvailable"
+        ]
+      },
+      "CreateTableDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "T1"
+          },
+          "area": {
+            "type": "string",
+            "example": "Rooftop"
+          },
+          "capacity": {
+            "type": "number",
+            "example": 4
+          },
+          "shape": {
+            "type": "string",
+            "enum": [
+              "RECT",
+              "ROUND"
+            ]
+          },
+          "posX": {
+            "type": "number"
+          },
+          "posY": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "label",
+          "capacity"
+        ]
+      },
+      "LayoutItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "posX": {
+            "type": "number"
+          },
+          "posY": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "shape": {
+            "type": "string",
+            "enum": [
+              "RECT",
+              "ROUND"
+            ]
+          },
+          "area": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "posX",
+          "posY"
+        ]
+      },
+      "SaveLayoutDto": {
+        "type": "object",
+        "properties": {
+          "tables": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LayoutItemDto"
+            }
+          }
+        },
+        "required": [
+          "tables"
+        ]
+      },
+      "UpdateTableDto": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "example": "T1"
+          },
+          "area": {
+            "type": "string",
+            "example": "Rooftop"
+          },
+          "capacity": {
+            "type": "number",
+            "example": 4
+          },
+          "shape": {
+            "type": "string",
+            "enum": [
+              "RECT",
+              "ROUND"
+            ]
+          },
+          "posX": {
+            "type": "number"
+          },
+          "posY": {
+            "type": "number"
+          },
+          "width": {
+            "type": "number"
+          },
+          "height": {
+            "type": "number"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "number",
+            "description": "Optimistic concurrency: the version you last read"
+          }
+        }
+      },
+      "OpenTableDto": {
+        "type": "object",
+        "properties": {
+          "guestCount": {
+            "type": "number",
+            "example": 2
+          }
+        },
+        "required": [
+          "guestCount"
+        ]
+      },
+      "TransferTableDto": {
+        "type": "object",
+        "properties": {
+          "toTableId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "toTableId"
+        ]
+      },
+      "MergeTablesDto": {
+        "type": "object",
+        "properties": {
+          "tableIds": {
+            "description": "Occupied tables whose sessions and orders join this table",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "tableIds"
+        ]
+      },
+      "ReserveTableDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Sharma party"
+          },
+          "phone": {
+            "type": "string",
+            "example": "9876543210"
+          },
+          "until": {
+            "type": "string",
+            "example": "2026-11-08T20:30:00+05:30",
+            "description": "Hold the table until this time"
+          }
+        },
+        "required": [
+          "name",
+          "until"
+        ]
+      },
+      "OutOfServiceDto": {
+        "type": "object",
+        "properties": {
+          "outOfService": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "outOfService"
+        ]
       }
     }
   }

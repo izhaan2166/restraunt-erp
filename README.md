@@ -4,8 +4,9 @@ A production-oriented restaurant ERP for the Indian market: dine-in, takeaway an
 billing, KOT and kitchen display, GST invoicing (CGST/SGST/IGST, HSN/SAC), inventory with
 recipes, purchasing, expenses, staff, cash shifts, reports, and multi-branch management.
 
-Built in phases, each implemented and tested before the next. **Current: Phase 1 –
-architecture, database schema, authentication and RBAC.**
+Built in phases, each implemented and tested before the next. **Done: Phase 1 (architecture,
+schema, authentication, RBAC) and Phase 2 (menu, branch pricing, add-ons, combos, tables and
+floor plan).** Next: Phase 3 – POS, orders, billing and GST invoices.
 
 | | |
 |---|---|

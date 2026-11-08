@@ -81,3 +81,20 @@ export async function tokenFor(ctx: TestContext, fx: OrgFixture, handle: string)
 }
 
 export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
+
+/** Adds a user holding one role (org-wide when branchId is null) and returns their access token. */
+export async function addUserWithRole(
+  ctx: TestContext,
+  fx: OrgFixture,
+  handle: string,
+  roleId: string,
+  branchId: string | null = null,
+): Promise<string> {
+  const email = `${handle.toLowerCase()}.${randomUUID().slice(0, 8)}@test.restaurantos.local`;
+  const u = await ctx.prisma.user.create({
+    data: { organizationId: fx.orgId, email, fullName: handle, passwordHash: await passwordHash() },
+  });
+  await ctx.prisma.userRole.create({ data: { organizationId: fx.orgId, userId: u.id, roleId, branchId } });
+  fx.users[handle] = { id: u.id, email };
+  return tokenFor(ctx, fx, handle);
+}
