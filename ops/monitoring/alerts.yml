@@ -1,0 +1,69 @@
+groups:
+  - name: restaurant-os
+    rules:
+      - alert: ApiDown
+        expr: up{job="restaurant-os-api"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: "API instance {{ $labels.instance }} is not answering"
+          runbook: "docs/monitoring.md#api-down"
+
+      - alert: DatabaseUnreachable
+        expr: ros_database_up == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "The API cannot reach PostgreSQL: billing and orders are failing"
+          runbook: "docs/monitoring.md#database-unreachable"
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(ros_http_requests_total{status=~"5.."}[5m]))
+            / clamp_min(sum(rate(ros_http_requests_total[5m])), 0.001) > 0.02
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "More than 2% of API requests are failing with server errors"
+          runbook: "docs/monitoring.md#high-error-rate"
+
+      - alert: SlowCheckout
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(ros_http_request_duration_seconds_bucket{route=~".*/billing/checkout|.*/invoices/:id/payments"}[10m]))) > 1.5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "95% of checkouts and payments are slower than 1.5 s"
+          runbook: "docs/monitoring.md#slow-requests"
+
+      - alert: RealtimeBacklog
+        expr: ros_realtime_outbox_backlog > 500
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Kitchen and POS screens are not getting live updates (backlog {{ $value }})"
+          runbook: "docs/monitoring.md#realtime-backlog"
+
+      - alert: RedisDown
+        expr: ros_redis_up == 0
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Redis is unreachable: rate limits are not being enforced"
+          runbook: "docs/monitoring.md#redis-down"
+
+      - alert: HighMemory
+        expr: ros_process_resident_memory_bytes > 1.5e9
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: "API instance {{ $labels.instance }} is using more than 1.5 GB"
+          runbook: "docs/monitoring.md#high-memory"
+
+      - alert: EventLoopLag
+        expr: ros_nodejs_eventloop_lag_p99_seconds > 0.5
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "The API's event loop is blocked; every request is slowed down"
+          runbook: "docs/monitoring.md#slow-requests"

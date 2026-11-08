@@ -305,7 +305,27 @@ Definitions in plain words: [reports.md](reports.md).
   details?, requestId } }`. Stack traces, SQL and constraint internals are logged, never returned.
 * Structured JSON logs (pino) with a request id (taken from `X-Request-Id` or generated),
   user id, and redaction of `Authorization`, cookies and `Set-Cookie`.
-* `/api/v1/health/live` and `/api/v1/health/ready` (checks PostgreSQL) for orchestrators.
+* `/api/v1/health/live` and `/api/v1/health/ready` (PostgreSQL decides readiness; Redis is reported)
+  for orchestrators.
+* Prometheus metrics at `/api/v1/metrics` (token-protected): request rate, latency and status per
+  route template, database/Redis reachability, realtime backlog, Node.js runtime. Alert rules and
+  runbooks: [monitoring.md](monitoring.md).
+* Unhandled rejections are logged; an uncaught exception is logged as fatal and the process exits
+  cleanly so the orchestrator restarts it.
+
+## 10a. Production hardening (Phase 8)
+
+* **Config guard.** In production the API refuses to start with wildcard/HTTP/localhost CORS,
+  insecure cookies, the memory mail transport, a non-HTTPS app URL or a placeholder JWT secret.
+* **Shared rate limits.** With `REDIS_URL`, throttler counters live in Redis (one atomic Lua script per
+  hit) so limits hold across instances. If Redis is unreachable, requests are allowed and the outage
+  is logged; account lockout in PostgreSQL still stops password guessing.
+* **Email.** `MAIL_TRANSPORT=smtp` sends plain-text mail through any SMTP provider.
+* **Private files.** Receipts are stored apart from public images and reach users only through an
+  authenticated route (local stream or a short-lived signed S3 URL).
+* **Deployment.** One image; migrations as a one-off job; Caddy for TLS on a single server, or any
+  load balancer in the cloud. See [deployment.md](deployment.md), [backup-restore.md](backup-restore.md),
+  [security.md](security.md), [performance.md](performance.md).
 
 ## 11. Architecture decision records
 

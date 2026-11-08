@@ -227,13 +227,17 @@ export class AuthService {
       );
     });
     const link = `${this.env.APP_PUBLIC_URL}/reset-password?token=${encodeURIComponent(raw)}`;
-    await this.mail.send({
-      to: user.email,
-      subject: 'Reset your RestaurantOS password',
-      text: `Hi ${user.fullName},\n\nUse this link within ${Math.round(
-        this.env.PASSWORD_RESET_TTL_SECONDS / 60,
-      )} minutes to reset your password:\n${link}\n\nIf you did not request this, ignore this email.`,
-    });
+    // Not awaited: a slow or failing mail server must neither delay this response nor turn it into
+    // an error (either would reveal that the address has an account). Failures are logged.
+    void this.mail
+      .send({
+        to: user.email,
+        subject: 'Reset your RestaurantOS password',
+        text: `Hi ${user.fullName},\n\nUse this link within ${Math.round(
+          this.env.PASSWORD_RESET_TTL_SECONDS / 60,
+        )} minutes to reset your password:\n${link}\n\nIf you did not request this, ignore this email.`,
+      })
+      .catch(() => undefined);
   }
 
   async resetPassword(rawToken: string, newPassword: string, meta: RequestMeta): Promise<void> {

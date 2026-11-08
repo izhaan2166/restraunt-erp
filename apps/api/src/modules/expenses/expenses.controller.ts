@@ -1,7 +1,7 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { CurrentUser, RequirePermissions } from '../../common/decorators/auth.decorators';
 import { requestMeta } from '../../common/http/request-meta';
 import { Idempotent } from '../../common/idempotency/idempotency';
@@ -96,5 +96,23 @@ export class ExpensesController {
   @ApiBody({ schema: { type: 'object', properties: { receipt: { type: 'string', format: 'binary' } }, required: ['receipt'] } })
   uploadReceipt(@CurrentUser() u: AuthPrincipal, @Param('id', ID) id: string, @UploadedFile() file: UploadedReceipt | undefined, @Req() req: Request) {
     return this.expenses.uploadReceipt(u, id, file, requestMeta(req));
+  }
+
+  /**
+   * The receipt file. Local storage streams it; S3 redirects to a signed URL that expires in
+   * minutes. Either way it is never cached by browsers or proxies.
+   */
+  @Get('expenses/:id/receipt')
+  @RequirePermissions('expenses.read', 'any')
+  async receipt(@CurrentUser() u: AuthPrincipal, @Param('id', ID) id: string, @Res({ passthrough: true }) res: Response) {
+    const r = await this.expenses.receipt(u, id);
+    res.setHeader('Cache-Control', 'private, no-store');
+    if (r.file.kind === 'redirect') {
+      res.redirect(302, r.file.url);
+      return;
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox");
+    return new StreamableFile(r.file.body, { type: r.contentType, disposition: `inline; filename="${r.filename}"` });
   }
 }

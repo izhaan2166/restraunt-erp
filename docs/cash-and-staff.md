@@ -30,7 +30,8 @@
   GST (and the GST part if there is a bill), the date, how it was paid, who was paid, and
   optionally the employee it was for.
 - A receipt (photo or PDF, up to 5 MB) can be attached. The file is checked to really be an image
-  or PDF.
+  or PDF. Receipts are private: they open only through the app, for people allowed to see the
+  expense, and are never reachable by a public link.
 - Who can do what by default: managers and accountants record expenses; accountants and owners
   edit them; only owners delete them. Every edit and delete needs a reason.
 - Deleting never erases: the expense is hidden, kept with the reason, and its full history (who

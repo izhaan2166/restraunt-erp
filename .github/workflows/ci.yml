@@ -23,11 +23,18 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U ros" --health-interval 5s --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 20
     env:
       DATABASE_URL: postgresql://ros:ros_dev_password@localhost:5432/restaurant_os_test?schema=public
       TEST_DATABASE_URL: postgresql://ros:ros_dev_password@localhost:5432/restaurant_os_test?schema=public
       SHADOW_DATABASE_URL: postgresql://ros:ros_dev_password@localhost:5432/ros_shadow?schema=public
       JWT_ACCESS_SECRET: ci-only-secret-0123456789abcdef0123456789
+      # Rate-limit storage tests and the whole e2e suite run against a real Redis.
+      TEST_REDIS_URL: redis://localhost:6379/15
     defaults:
       run:
         working-directory: apps/api
@@ -50,6 +57,8 @@ jobs:
         run: pnpm test
       - name: Integration tests (real PostgreSQL)
         run: pnpm test:e2e
+      - name: Load test (smoke)
+        run: LOAD_ORDERS=300 LOAD_READS=30 pnpm load-test
       - name: Build
         run: pnpm build
 

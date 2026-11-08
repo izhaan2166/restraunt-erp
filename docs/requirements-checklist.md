@@ -2,7 +2,7 @@
 
 Status: ✅ done and tested · 🟡 designed (schema/contract in place), behaviour in a later phase · ⏳ not started · ❌ failing
 
-_Last updated: Phase 7._
+_Last updated: Phase 8._
 
 ## Phase 1 – Architecture, schema, authentication, RBAC
 
@@ -33,8 +33,8 @@ _Last updated: Phase 7._
 | Swagger / OpenAPI | ✅ | `/api/docs` |
 | Docker + env example + CI | ✅ | `docker-compose.yml`, `apps/api/Dockerfile`, `.env.example`, `.github/workflows/ci.yml` |
 | Finalized invoices immutable; ledgers append-only (DB level) | ✅ | triggers + integrity tests |
-| Email delivery for password reset | 🟡 | Log transport only; SMTP/SES transport in Phase 8 |
-| Redis-backed rate limit / permission cache | 🟡 | In-memory throttler for now; Redis in Phase 8 (realtime fan-out uses PostgreSQL, see architecture §9) |
+| Email delivery for password reset | ✅ | SMTP transport (`MAIL_TRANSPORT=smtp`), `smtp-mail.service.spec.ts`; sent without blocking the response |
+| Redis-backed rate limit | ✅ | `RedisThrottlerStorage` when `REDIS_URL` is set (`redis-throttler.storage.spec.ts`; CI runs the e2e suite on Redis). Permissions are read per request from PostgreSQL, no cache needed at measured load ([performance.md](performance.md)) |
 
 ## Phase 2 – Menu and tables
 
@@ -166,7 +166,7 @@ _Last updated: Phase 7._
 | Attendance and hours report per employee | ✅ | employees e2e |
 | Employee activity: login/logout times and recent actions | ✅ | employees e2e |
 | Isolation per organization and branch | ✅ | all three suites |
-| Receipts behind signed, expiring links | 🟡 | Stored under unguessable names for now; signed URLs in Phase 8 |
+| Receipts private: permission-checked route, signed expiring S3 links | ✅ | `GET /expenses/:id/receipt`, expenses e2e (public `/uploads` refuses receipts) |
 | Shift roster (planned shifts) API | 🟡 | Schema ready (`employee_shifts`); API later |
 | Split shifts on one day | 🟡 | One attendance span per day; a manager records the total |
 | Staff, expense and cash screens (frontend) | 🟡 | Next.js frontend |
@@ -191,11 +191,30 @@ _Last updated: Phase 7._
 | CSV and PDF exports for every report; invoice PDF | ✅ | reports e2e |
 | Branch and organization isolation; financial figures hidden without permission | ✅ | reports e2e |
 | Report screens (frontend) | 🟡 | Next.js frontend |
-| Heavy reports in background jobs / cached | 🟡 | Run on request for now; Phase 8 load tests decide |
+| Heavy reports in background jobs / cached | ✅ | Not needed: month reports p95 under 160 ms at 25 concurrent clients ([performance.md](performance.md)) |
+
+## Phase 8 – Hardening, load tests, monitoring, deployment, docs
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Security review against the spec's list; documented defences | ✅ | [security.md](security.md) |
+| Unsafe production settings refused at startup (CORS, cookies, mail, JWT secret, app URL) | ✅ | `env.spec.ts` |
+| Rate limits shared across API instances (Redis), failing open if Redis is down | ✅ | `redis-throttler.storage.spec.ts` |
+| Real email delivery (SMTP) | ✅ | `smtp-mail.service.spec.ts` |
+| Private expense receipts | ✅ | expenses e2e |
+| Monitoring: Prometheus metrics, readiness with DB and Redis, alert rules, runbooks | ✅ | `test/ops.e2e-spec.ts`, `ops/monitoring/`, [monitoring.md](monitoring.md) |
+| Error tracking: request ids in every error, structured logs, crash handling | ✅ | `main.ts`, exception filter, [monitoring.md](monitoring.md) |
+| End-to-end dine-in flow test (waiter → kitchen → cashier → UPI → reports) | ✅ | `test/critical-flows.e2e-spec.ts` |
+| Edge cases: concurrent order edits, double payment, checkout retries, two cashiers one table, branches in parallel | ✅ | critical-flows e2e |
+| Load test with recorded p50/p95/p99 | ✅ | `pnpm load-test`, [performance.md](performance.md); smoke run in CI |
+| Production deployment with HTTPS | ✅ | `ops/production/`, [deployment.md](deployment.md) |
+| First-organization setup for a real install | ✅ | `prisma/create-organization.ts`, ops e2e |
+| Backups and tested restore | ✅ | `ops/backup/`, [backup-restore.md](backup-restore.md) (drill run 2026-11-08) |
+| Admin and user guides | ✅ | [admin-guide.md](admin-guide.md), [user-guide.md](user-guide.md) |
+| Error tracking service (Sentry or similar) | 🟡 | Logs carry everything needed; plugging in a hosted service is a config choice for the operator |
 
 ## Later phases
 
 | Phase | Area | Status |
 |---|---|---|
-| 8 | Hardening, load tests, monitoring, deployment & backup runbooks, admin/user docs | ⏳ |
-| 2+ | Next.js frontend | ⏳ |
+| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | ⏳ |

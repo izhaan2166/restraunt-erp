@@ -1,4 +1,4 @@
-import { API, TestContext, createTestApp } from './helpers/app';
+import { API, TestContext, binary, createTestApp } from './helpers/app';
 import { OrgFixture, bearer, createOrg, openShift, tokenFor } from './helpers/fixtures';
 import { key } from './helpers/menu';
 
@@ -127,9 +127,21 @@ describe('Expenses (e2e)', () => {
     const bad = await http().post(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.managerA)).attach('receipt', Buffer.from('<html>hi</html>'), 'receipt.png').expect(422);
     expect(bad.body.error.code).toBe('UNSUPPORTED_FILE');
     const png = await http().post(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.managerA)).attach('receipt', PNG, 'bill.png').expect(201);
-    expect(png.body.data.receiptUrl).toMatch(new RegExp(`${fx.orgId}/receipts/[0-9a-f-]{36}\\.png$`));
-    const pdf = await http().post(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.accountant)).attach('receipt', PDF, 'bill.pdf').expect(201);
-    expect(pdf.body.data.receiptUrl).toMatch(/\.pdf$/);
+    expect(png.body.data.receiptUrl).toBe(`/api/v1/expenses/${e.id}/receipt`);
+    expect(png.body.data).not.toHaveProperty('receiptKey');
+    const got = await http().get(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.managerA)).buffer(true).parse(binary).expect(200);
+    expect(got.headers['content-type']).toBe('image/png');
+    expect(got.headers['cache-control']).toBe('private, no-store');
+    expect(Buffer.compare(got.body as Buffer, PNG)).toBe(0);
+    await http().get(`${API}/expenses/${e.id}/receipt`).expect(401);
+    await http().get(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.managerB)).expect(404);
+    // Nothing under the public uploads path ever serves a receipt.
+    const row = await ctx.prisma.expense.findUniqueOrThrow({ where: { id: e.id } });
+    expect(row.receiptKey).toMatch(new RegExp(`^${fx.orgId}/receipts/[0-9a-f-]{36}\\.png$`));
+    await http().get(`/uploads/${row.receiptKey}`).expect(404);
+    await http().post(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.accountant)).attach('receipt', PDF, 'bill.pdf').expect(201);
+    const gotPdf = await http().get(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.accountant)).buffer(true).parse(binary).expect(200);
+    expect(gotPdf.headers['content-type']).toBe('application/pdf');
     await http().post(`${API}/expenses/${e.id}/receipt`).set(bearer(tok.managerB)).attach('receipt', PNG, 'bill.png').expect(404);
   });
 

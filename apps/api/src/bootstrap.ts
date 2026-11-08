@@ -18,6 +18,11 @@ export function configureApp(app: INestApplication, env: Env): void {
 
   app.use(helmet());
   if (env.STORAGE_DRIVER === 'local') {
+    // Receipts uploaded before they became private may still sit in the public folder: never serve them.
+    express.use(`${LOCAL_UPLOAD_PREFIX}`, (req: { path: string }, res: { status(n: number): { end(): void } }, next: () => void) => {
+      if (/\/receipts\//i.test(decodeURIComponent(req.path))) return res.status(404).end();
+      next();
+    });
     // Development/self-hosted image serving. Product images are public menu content; the
     // file names are random UUIDs and only sniffed JPEG/PNG/WebP files are ever written.
     express.useStaticAssets(resolve(env.UPLOAD_DIR), {

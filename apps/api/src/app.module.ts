@@ -1,6 +1,10 @@
 import { Module, RequestMethod } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import type Redis from 'ioredis';
+import { MetricsModule } from './modules/metrics/metrics.module';
+import { REDIS, RedisModule } from './modules/redis/redis.module';
+import { RedisThrottlerStorage } from './modules/redis/redis-throttler.storage';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
@@ -63,9 +67,13 @@ const env = loadEnv();
         autoLogging: { ignore: (req) => (req.url ?? '').startsWith('/api/v1/health') },
       },
     }),
+    RedisModule,
     ThrottlerModule.forRootAsync({
-      inject: [ENV],
-      useFactory: (e: Env) => [
+      inject: [ENV, REDIS],
+      useFactory: (e: Env, redis: Redis | null) => ({
+        // Shared counters across instances when Redis is configured; in-process otherwise.
+        storage: redis ? new RedisThrottlerStorage(redis) : undefined,
+        throttlers: [
         { name: 'default', ttl: 60_000, limit: e.RATE_LIMIT_PER_MINUTE },
         // Stricter per-IP bucket, only for routes marked @AuthThrottle() (login, refresh, reset…).
         {
@@ -74,7 +82,8 @@ const env = loadEnv();
           limit: e.AUTH_RATE_LIMIT_PER_MINUTE,
           skipIf: (ctx) => !Reflect.getMetadata(AUTH_THROTTLE, ctx.getHandler()),
         },
-      ],
+        ],
+      }),
     }),
     PrismaModule,
     MailModule,
@@ -100,6 +109,7 @@ const env = loadEnv();
     ExpensesModule,
     ReportsModule,
     EmployeesModule,
+    MetricsModule,
   ],
   controllers: [HealthController],
   providers: [
