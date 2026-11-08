@@ -51,3 +51,11 @@ export class Paginated<T> {
     this.meta = { page: q.page, pageSize: q.pageSize, total, totalPages: Math.ceil(total / q.pageSize) };
   }
 }
+
+/** A non-paginated result that also carries metadata (rendered as `{ data, meta }`). */
+export class WithMeta<T> {
+  constructor(
+    public readonly data: T,
+    public readonly meta: Record<string, unknown>,
+  ) {}
+}

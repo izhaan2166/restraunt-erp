@@ -173,19 +173,50 @@ Phase 3 error codes: `IDEMPOTENCY_KEY_REQUIRED`, `INVALID_IDEMPOTENCY_KEY`, `IDE
 `REFUND_NOT_PENDING`, `SELF_APPROVAL`, `INVALID_INVOICE_ITEM`, `DUPLICATE_LINE`, `EXCEEDS_INVOICED_QUANTITY`,
 `NOTHING_TO_CREDIT`, `INVOICE_HAS_PAYMENTS`, `CONCURRENT_UPDATE`.
 
+## Implemented in Phase 4
+
+| Method | Path | Permission (scope) | Notes |
+|---|---|---|---|
+| GET | /kot | `kot.read` (branch) | `branchId`, `stationId?`, `status?` (comma-separated; default the live board PENDING,PREPARING,READY), `updatedSince?` (all statuses), `limit?` (≤ 500). Oldest first. `meta.serverTime` |
+| GET | /kot/:id | `kot.read` | Ticket with station, order number, order type, table, notes, items (name, variant, quantity, add-ons, instructions, status, started/ready/served times) and `elapsedSeconds` (stops when ready) |
+| PATCH | /kot/items/:id/status | `kot.update_status`; `SERVED` also with `orders.update` | `{ status: PREPARING\|READY\|SERVED }`. Forward only (steps may be skipped); repeating the current status is a no-op |
+| POST | /kot/:id/status | same as above | "Bump": moves every unfinished item of the ticket to the status |
+| GET | /realtime/events | signed in; topic rights per branch | `branchId`, `after` (last event id processed), `topics?`, `limit?` (≤ 1000). `meta.lastSeq` is the next cursor, `meta.hasMore`. `410 RESYNC_REQUIRED` when the gap is no longer kept |
+| WS | /realtime (socket.io path) | access token in `auth.token` | See below |
+
+How kitchen progress moves the order: the ticket follows its slowest item. The order becomes
+PREPARING when any item is started, READY only when **every** active item has been sent and is ready
+(one ready item never makes the order ready), and for dine-in SERVED when every item is served. A
+dine-in order whose bill is already paid completes when its last item is served. Orders only move
+forward; items added later go to the kitchen as new tickets without moving a ready order back.
+
+`GET /orders` also accepts `updatedSince` for resync.
+
+**WebSocket protocol** (socket.io, `io(url, { path: '/realtime', auth: { token } })`):
+
+| Direction | Message | Payload |
+|---|---|---|
+| server → client | `ready` | `{ userId, expiresAt }` after the handshake is accepted |
+| client → server | `subscribe` (with ack) | `{ branchId, topics?: [orders, kitchen, tables, payments], since? }` → `{ ok, topics, events?, lastSeq?, resyncRequired? }` or `{ ok: false, error: { code, message } }` |
+| client → server | `unsubscribe` (with ack) | `{ branchId }` |
+| server → client | `event` | `{ id, type, topic, branchId, entityType, entityId, entityVersion, data, occurredAt }` |
+| server → client | `session_expired` | `{ reason: TOKEN_EXPIRED \| SESSION_REVOKED }`, then the socket closes; reconnect with a fresh token and `since` |
+
+Handshake errors arrive as `connect_error` with `data.code` (`UNAUTHENTICATED`, `INVALID_ACCESS_TOKEN`,
+`SESSION_INVALID`).
+
+Event types: `order.created`, `order.updated`, `order.cancelled` (topic orders); `kot.created`,
+`kot.updated`, `kot.item.updated` (kitchen); `table.status.updated` (tables); `payment.completed`,
+`refund.requested`, `refund.completed`, `refund.rejected` (payments). `inventory.low_stock` and
+`shift.closed` arrive with Phases 5 and 6.
+
+Phase 4 error codes: `INVALID_STATION`, `ITEM_CANCELLED`, `TICKET_CANCELLED`, `ORDER_CANCELLED`,
+`INVALID_TRANSITION`, `RESYNC_REQUIRED`.
+
 ## Planned contracts (later phases)
 
 These fix names and shapes now so the frontend and backend can be built against them. Details
 may be refined in each phase's PR.
-
-### Phase 4 – Kitchen and realtime
-```
-GET    /kot?branchId=&stationId=&status=
-PATCH  /kot/items/:id/status       { status: PREPARING|READY|SERVED }
-WS     /realtime                   auth: access token; join room org:{id}:branch:{id}
-events order.created order.updated order.cancelled kot.created kot.item.updated
-       table.status.updated payment.completed inventory.low_stock shift.closed
-```
 
 ### Phase 5 – Inventory and purchasing
 ```

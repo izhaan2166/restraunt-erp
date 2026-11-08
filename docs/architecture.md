@@ -33,7 +33,7 @@ flowchart LR
   end
 
   PG[(PostgreSQL 16<br/>source of truth)]
-  RD[(Redis<br/>rate limits, cache,<br/>queues, WS fan-out)]
+  RD[(Redis<br/>rate limits, cache,<br/>queues – Phase 8)]
   S3[(S3-compatible storage<br/>images, receipts, PDFs)]
 
   POS & KDS & MGR & WTR --> UI
@@ -213,12 +213,43 @@ sequenceDiagram
 
 ## 9. Real-time (Phase 4)
 
-WebSocket gateway authenticated with the access token on connect; clients join
-`org:{id}:branch:{id}` rooms only after the same permission check as REST. Events
-(`order.created`, `kot.item.updated`, `table.status.updated`, …) carry an event id and the
-entity version; clients ignore duplicates and, after reconnecting, re-fetch state through REST
-using `updatedSince`. Events are written to an outbox in the same transaction as the change and
-published from there, so a committed change is never lost and an uncommitted one is never sent.
+```mermaid
+sequenceDiagram
+  participant POS as POS / KDS screen
+  participant API as API (any instance)
+  participant DB as PostgreSQL
+  POS->>API: PATCH /kot/items/:id/status
+  API->>DB: one transaction: item, ticket, order + trigger writes realtime_events row
+  Note over DB: row exists only if the change committed
+  loop every REALTIME_POLL_MS (default 200 ms)
+    API->>DB: relay (advisory lock): number new rows seq = 1, 2, 3 … in commit order
+    API->>DB: read rows with seq > last pushed
+    API-->>POS: socket.io "event" to room b:{branch}:{topic}
+  end
+  POS->>API: after reconnect: subscribe { since: lastSeq } or GET /realtime/events?after=
+```
+
+- **Outbox in the database.** Triggers on `orders`, `restaurant_tables`, `kitchen_tickets`,
+  `kitchen_ticket_items`, `payments` and `refunds` write a `realtime_events` row in the same
+  transaction as the change, so a committed change is never lost and a rolled-back one is never
+  sent. Several changes to one record in one transaction are merged into one event with the final
+  state.
+- **Numbering.** The relay gives committed rows a gap-free `seq` under a PostgreSQL advisory lock,
+  so numbers follow commit order even with several API instances. Every instance then reads rows past
+  the last `seq` it pushed and sends them to its own sockets. No Redis is needed for fan-out; the
+  socket.io Redis adapter can be added later without changing clients.
+- **Authorization.** The socket.io handshake (`path: /realtime`, `auth.token`) checks the access token
+  and session like a REST call. `subscribe { branchId }` joins only the topics the caller may read in
+  that branch: `orders` (orders.read), `kitchen` (kot.read), `tables` (tables.read), `payments`
+  (payments.read). The socket is closed when the token expires (`session_expired`) and within a
+  minute of the session being revoked.
+- **Recovery.** Each event carries `id` (= `seq`), the entity id and, where it has one, its
+  `version`. Clients ignore ids they already processed. After a reconnect they subscribe with
+  `since` (or call `GET /realtime/events?after=`) and get the missed events, or `RESYNC_REQUIRED`
+  when the gap is older than `REALTIME_RETENTION_HOURS`, in which case they reload through REST
+  (`GET /orders?updatedSince=`, `GET /kot?updatedSince=`, the floor plan).
+- **Source of truth.** Events say what changed with a small summary; screens read details through
+  the REST API. PostgreSQL stays authoritative.
 
 ## 10. Errors, logging and observability
 

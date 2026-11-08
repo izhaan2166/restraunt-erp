@@ -9,6 +9,8 @@ export interface AccessClaims {
   org: string;
   sid: string;
   typ: 'access';
+  /** Set by the JWT library on signed tokens (seconds since epoch). */
+  exp?: number;
 }
 
 export function sha256(value: string): string {

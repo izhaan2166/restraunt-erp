@@ -31,4 +31,5 @@ export const Errors = {
   locked: (message: string) => new AppError(HttpStatus.LOCKED, 'ACCOUNT_LOCKED', message),
   unprocessable: (code: string, message: string, details?: unknown) =>
     new AppError(HttpStatus.UNPROCESSABLE_ENTITY, code, message, details),
+  gone: (code: string, message: string, details?: unknown) => new AppError(HttpStatus.GONE, code, message, details),
 };

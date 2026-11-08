@@ -866,6 +866,7 @@ model KitchenTicket {
   createdById    String        @map("created_by_id") @db.Uuid
   createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
   completedAt    DateTime?     @map("completed_at") @db.Timestamptz(3)
+  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(3)
 
   order   Order               @relation(fields: [orderId], references: [id])
   station KitchenStation?     @relation(fields: [stationId], references: [id])
@@ -875,6 +876,7 @@ model KitchenTicket {
 
   @@unique([branchId, ticketNumber])
   @@index([branchId, status])
+  @@index([branchId, updatedAt])
   @@map("kitchen_tickets")
 }
 
@@ -1664,6 +1666,29 @@ model Notification {
 
   @@index([organizationId, userId, readAt])
   @@map("notifications")
+}
+
+/// Transactional outbox for realtime events. Rows are written by database triggers in the same
+/// transaction as the change; the relay gives each committed row a gap-free `seq` and pushes it to
+/// WebSocket clients. `seq` is what clients use to resume after a reconnect.
+model RealtimeEvent {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pendingId      BigInt    @default(autoincrement()) @map("pending_id")
+  seq            BigInt?   @unique
+  txid           BigInt    @default(dbgenerated("txid_current()"))
+  organizationId String    @map("organization_id") @db.Uuid
+  branchId       String    @map("branch_id") @db.Uuid
+  topic          String    @db.VarChar(20)
+  type           String    @db.VarChar(50)
+  entityType     String    @map("entity_type") @db.VarChar(30)
+  entityId       String    @map("entity_id") @db.Uuid
+  entityVersion  Int?      @map("entity_version")
+  payload        Json      @default("{}")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  publishedAt    DateTime? @map("published_at") @db.Timestamptz(3)
+
+  @@index([branchId, seq])
+  @@map("realtime_events")
 }
 
 /// Append-only (UPDATE/DELETE blocked by trigger).
