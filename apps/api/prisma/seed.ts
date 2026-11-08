@@ -91,6 +91,67 @@ async function seedDemo(db: PrismaClient): Promise<void> {
         { organizationId: org.id, name: 'Exempt / Nil', rate: '0', cgstRate: '0', sgstRate: '0', igstRate: '0' },
       ],
     });
+    const gst5 = await tx.taxRate.findFirstOrThrow({ where: { organizationId: org.id, rate: '5' } });
+
+    // Demo menu (clearly demo content; replace with the restaurant's real menu).
+    const addOns = await tx.modifierGroup.create({
+      data: {
+        organizationId: org.id,
+        name: 'Add-ons',
+        minSelect: 0,
+        maxSelect: 3,
+        modifiers: { create: [{ name: 'Extra butter', price: '30' }, { name: 'Extra cheese', price: '40' }, { name: 'Mint chutney', price: '15' }] },
+      },
+    });
+    const menu: [string, [string, string, string, boolean, string, [string, string][]][]][] = [
+      ['Starters', [
+        ['DEMO-PNR-TIKKA', 'Paneer Tikka', '280', true, 'MAIN', [['Half', '180'], ['Full', '320']]],
+        ['DEMO-CHK-65', 'Chicken 65', '300', false, 'MAIN', []],
+      ]],
+      ['Main Course', [
+        ['DEMO-DAL-MAKH', 'Dal Makhani', '260', true, 'MAIN', []],
+        ['DEMO-BTR-CHK', 'Butter Chicken', '380', false, 'MAIN', [['Half', '240'], ['Full', '380']]],
+        ['DEMO-BTR-NAAN', 'Butter Naan', '60', true, 'MAIN', []],
+      ]],
+      ['Beverages', [
+        ['DEMO-MSL-CHAI', 'Masala Chai', '50', true, 'BEV', []],
+        ['DEMO-SWT-LASSI', 'Sweet Lassi', '90', true, 'BEV', []],
+      ]],
+      ['Desserts', [['DEMO-GLB-JAMUN', 'Gulab Jamun (2 pc)', '110', true, 'DESSERT', []]]],
+    ];
+    for (const [i, [catName, items]] of menu.entries()) {
+      const cat = await tx.category.create({ data: { organizationId: org.id, name: catName, sortOrder: i } });
+      for (const [j, [sku, name, price, isVeg, stationCode, variants]] of items.entries()) {
+        await tx.product.create({
+          data: {
+            organizationId: org.id,
+            categoryId: cat.id,
+            taxRateId: gst5.id,
+            hsnSac: '996331',
+            sku,
+            name,
+            basePrice: price,
+            isVeg,
+            stationCode,
+            sortOrder: j,
+            variants: { create: variants.map(([vName, vPrice], k) => ({ name: vName, price: vPrice, isDefault: k === 0, sortOrder: k })) },
+            modifierGroups: catName === 'Main Course' ? { create: [{ groupId: addOns.id }] } : undefined,
+          },
+        });
+      }
+    }
+
+    // Demo floor plans.
+    for (const b of [blr, mum]) {
+      const layout: [string, string, number, number, number][] = [
+        ['T1', 'Main hall', 2, 20, 20], ['T2', 'Main hall', 4, 140, 20], ['T3', 'Main hall', 4, 260, 20],
+        ['T4', 'Main hall', 6, 20, 140], ['T5', 'Main hall', 8, 140, 140], ['P1', 'Patio', 4, 20, 280], ['P2', 'Patio', 4, 140, 280],
+      ];
+      await tx.restaurantTable.createMany({
+        data: layout.map(([label, area, capacity, posX, posY]) => ({ organizationId: org.id, branchId: b.id, label, area, capacity, posX, posY })),
+      });
+    }
+
     await tx.expenseCategory.createMany({
       data: ['Rent', 'Electricity', 'Salaries', 'Gas', 'Maintenance', 'Miscellaneous'].map((name) => ({
         organizationId: org.id,

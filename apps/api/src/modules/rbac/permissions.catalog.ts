@@ -25,6 +25,7 @@ export const PERMISSIONS = {
   'menu.read': 'View menu, categories and products',
   'menu.manage': 'Create and edit categories, products, variants and add-ons',
   'menu.price.update': 'Change product and branch prices',
+  'menu.availability.update': 'Mark products available or temporarily unavailable',
   'tables.read': 'View floor plan and table status',
   'tables.manage': 'Add and edit tables and floor layout',
   'tables.operate': 'Open, transfer, merge and split tables',

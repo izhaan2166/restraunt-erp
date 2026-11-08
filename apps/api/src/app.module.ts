@@ -18,6 +18,11 @@ import { MailModule } from './modules/mail/mail.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { RbacModule } from './modules/rbac/rbac.module';
 import { UsersModule } from './modules/users/users.module';
+import { KitchenStationsModule } from './modules/kitchen-stations/kitchen-stations.module';
+import { MenuModule } from './modules/menu/menu.module';
+import { StorageModule } from './modules/storage/storage.module';
+import { TablesModule } from './modules/tables/tables.module';
+import { TaxesModule } from './modules/taxes/taxes.module';
 import { Global } from '@nestjs/common';
 import { AUTH_THROTTLE } from './common/decorators/auth.decorators';
 
@@ -68,6 +73,11 @@ const env = loadEnv();
     OrganizationsModule,
     BranchesModule,
     UsersModule,
+    StorageModule,
+    TaxesModule,
+    KitchenStationsModule,
+    MenuModule,
+    TablesModule,
   ],
   controllers: [HealthController],
   providers: [

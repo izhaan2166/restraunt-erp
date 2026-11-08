@@ -36,6 +36,24 @@ const EnvSchema = z
     MAIL_TRANSPORT: z.enum(['log', 'memory']).default('log'),
     SWAGGER_ENABLED: bool.optional(),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+
+    STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+    UPLOAD_DIR: z.string().default('./uploads'),
+    UPLOAD_MAX_IMAGE_BYTES: z.coerce.number().int().positive().default(2 * 1024 * 1024),
+    S3_BUCKET: z.string().optional(),
+    S3_REGION: z.string().default('ap-south-1'),
+    S3_ENDPOINT: z.string().url().optional(),
+    S3_ACCESS_KEY_ID: z.string().optional(),
+    S3_SECRET_ACCESS_KEY: z.string().optional(),
+    S3_FORCE_PATH_STYLE: bool.default('false'),
+    S3_PUBLIC_BASE_URL: z.string().url().optional(),
+  })
+  .superRefine((e, ctx) => {
+    if (e.STORAGE_DRIVER === 's3') {
+      for (const key of ['S3_BUCKET', 'S3_PUBLIC_BASE_URL'] as const) {
+        if (!e[key]) ctx.addIssue({ code: z.ZodIssueCode.custom, path: [key], message: `${key} is required when STORAGE_DRIVER=s3` });
+      }
+    }
   })
   .transform((e) => ({
     ...e,

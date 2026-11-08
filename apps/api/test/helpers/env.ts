@@ -9,3 +9,5 @@ process.env.AUTH_RATE_LIMIT_PER_MINUTE = '100000';
 process.env.RATE_LIMIT_PER_MINUTE = '100000';
 process.env.CORS_ORIGINS = 'http://localhost:3000';
 process.env.SWAGGER_ENABLED = 'false';
+process.env.STORAGE_DRIVER = 'local';
+process.env.UPLOAD_DIR = require('node:path').join(require('node:os').tmpdir(), `ros-test-uploads-${process.pid}`);

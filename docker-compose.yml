@@ -42,9 +42,12 @@ services:
       DATABASE_URL: postgresql://ros:${POSTGRES_PASSWORD:-ros_dev_password}@postgres:5432/restaurant_os?schema=public
       REDIS_URL: redis://redis:6379
     ports: ["4000:4000"]
+    volumes:
+      - uploads:/app/uploads
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
 
 volumes:
   pgdata:
+  uploads:
