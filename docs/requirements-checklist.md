@@ -169,7 +169,7 @@ _Last updated: frontend part 3 (stock and purchasing screens)._
 | Receipts private: permission-checked route, signed expiring S3 links | ✅ | `GET /expenses/:id/receipt`, expenses e2e (public `/uploads` refuses receipts) |
 | Shift roster (planned shifts) API | 🟡 | Schema ready (`employee_shifts`); API later |
 | Split shifts on one day | 🟡 | One attendance span per day; a manager records the total |
-| Staff, expense and cash screens (frontend) | 🟡 | Next.js frontend |
+| Staff, expense and cash screens (frontend) | ✅ | Frontend part 4 below; `apps/web/e2e/money.spec.ts`, `apps/web/e2e/team.spec.ts` |
 
 ## Phase 7 – Dashboard, reports and exports
 
@@ -274,3 +274,20 @@ _Last updated: frontend part 3 (stock and purchasing screens)._
 | All money (order totals, GST, stock value, recipe cost) from the server | ✅ | stock e2e checks ₹1,680.00 |
 | Branch switcher has an accessible name | ✅ | `src/app/(app)/layout.tsx` |
 
+## Frontend part 4 – Money and team screens
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Money section (cash drawer, expenses, supplier bills) and Team section (attendance, employees), each shown only to roles that can use it | ✅ | `src/lib/nav.ts`; money and team e2e |
+| Cash drawer: open with counted cash, add or take out cash with a reason, retry-safe (idempotency keys) | ✅ | money e2e (₹1,000 + ₹500 − ₹200 = ₹1,300 from the server) |
+| Close a shift with the counted cash; a difference needs a note; short or over shown | ✅ | money e2e (₹50.00 short refused without a note, then closed) |
+| Managers see every shift, each shift's report and entries, cash by cashier, and can close another person's shift | ✅ | money e2e (manager sees the short shift and its entries) |
+| Expenses by month and category with the server's totals and GST; receipt photo or PDF upload and viewing | ✅ | money e2e (₹1,180 with a PNG receipt) |
+| Expense edits need a reason and keep a history; delete (owner) needs a reason; paid-from-drawer option | ✅ | money e2e (accountant corrects to ₹1,080) |
+| Expense categories: add, stop using, use again | ✅ | `src/app/(app)/money/expenses/page.tsx` |
+| Supplier bills: enter a bill (with the deliveries it covers), due date from payment terms, pay in parts, cancel with a reason, overdue filter | ✅ | money e2e (₹4,200 bill, ₹1,500 paid, ₹2,700 owed) |
+| Supplier statement with running balance | ✅ | money e2e (owed now ₹2,700.00) |
+| Employees: add, edit, job, joining date, salary (only for people who manage staff), branch, tie to a sign-in, mark as left | ✅ | team e2e |
+| Clock in and out from the top bar, for staff with an employee record | ✅ | team e2e (waiter clocks in and out) |
+| Attendance by day with the month's summary; managers record or correct a day (leave, absent, half day, times) with a reason | ✅ | team e2e (leave recorded) |
+| Receipt uploads send multipart form data | ✅ | `src/lib/api.test.ts` |

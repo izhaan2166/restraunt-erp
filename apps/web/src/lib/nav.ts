@@ -1,4 +1,4 @@
-import { ChefHat, ClipboardList, LayoutGrid, LucideIcon, Package, Settings, ShoppingCart } from 'lucide-react';
+import { ChefHat, ClipboardList, IndianRupee, LayoutGrid, LucideIcon, Package, Settings, ShoppingCart, Users } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -15,6 +15,8 @@ export const NAV: NavItem[] = [
   { href: '/orders', label: 'Orders', icon: ClipboardList, anyOf: ['orders.read'] },
   { href: '/kitchen', label: 'Kitchen', icon: ChefHat, anyOf: ['kot.read'] },
   { href: '/stock', label: 'Stock', icon: Package, anyOf: ['inventory.read', 'purchases.read', 'suppliers.read'] },
+  { href: '/money', label: 'Money', icon: IndianRupee, anyOf: ['shifts.open', 'shifts.read', 'expenses.read', 'supplier_payments.create'] },
+  { href: '/team', label: 'Team', icon: Users, anyOf: ['employees.read'] },
   { href: '/manage', label: 'Manage', icon: Settings, anyOf: ['menu.manage', 'menu.availability.update', 'users.read', 'branches.update', 'settings.read', 'tables.manage'] },
 ];
 
@@ -32,6 +34,19 @@ export const STOCK_NAV: NavItem[] = [
   { href: '/stock/recipes', label: 'Recipes', icon: ClipboardList, anyOf: ['inventory.read'] },
   { href: '/stock/purchases', label: 'Purchase orders', icon: ClipboardList, anyOf: ['purchases.read'] },
   { href: '/stock/suppliers', label: 'Suppliers', icon: ClipboardList, anyOf: ['suppliers.read'] },
+];
+
+/** Sections of the Money area. */
+export const MONEY_NAV: NavItem[] = [
+  { href: '/money/cash', label: 'Cash drawer', icon: IndianRupee, anyOf: ['shifts.open', 'shifts.read'] },
+  { href: '/money/expenses', label: 'Expenses', icon: ClipboardList, anyOf: ['expenses.read'] },
+  { href: '/money/bills', label: 'Supplier bills', icon: ClipboardList, anyOf: ['supplier_payments.create'] },
+];
+
+/** Sections of the Team area. */
+export const TEAM_NAV: NavItem[] = [
+  { href: '/team/attendance', label: 'Attendance', icon: Users, anyOf: ['employees.read'] },
+  { href: '/team/people', label: 'Employees', icon: Users, anyOf: ['employees.read'] },
 ];
 
 export function visibleNav(can: (p: string) => boolean) {

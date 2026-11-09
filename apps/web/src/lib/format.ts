@@ -71,3 +71,27 @@ export function stockQty(q: string | number, unit: string): string {
   if (BIGGER[unit] && Math.abs(n) >= 1000) return `${fmt(n / 1000)} ${BIGGER[unit]}`;
   return `${fmt(n)} ${unit}`;
 }
+
+export const METHOD_LABEL: Record<string, string> = { CASH: 'Cash', UPI: 'UPI', CARD: 'Card', WALLET: 'Wallet', BANK_TRANSFER: 'Bank transfer', OTHER: 'Other' };
+
+/** An amount typed by staff: rupees with up to 2 decimals. */
+export const MONEY_INPUT = /^(0|[1-9][0-9]{0,11})(\.[0-9]{1,2})?$/;
+
+/** Today's date in India as YYYY-MM-DD (business dates are Indian dates, whatever the device clock zone). */
+export function indiaDate(d: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+}
+
+/** The first and last day of the month that contains the given India date. */
+export function monthOf(date: string): { from: string; to: string } {
+  const [y, m] = date.split('-').map(Number);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const mm = String(m).padStart(2, '0');
+  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(last).padStart(2, '0')}` };
+}
+
+/** A YYYY-MM-DD business date for display, e.g. "9 Nov 2026". */
+export function shortDate(date: string): string {
+  const [y, m, d] = date.slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+}

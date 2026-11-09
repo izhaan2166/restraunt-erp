@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsed, qty, rupees, skuFrom, stockQty, titleCase } from './format';
+import { elapsed, indiaDate, monthOf, qty, rupees, shortDate, skuFrom, stockQty, titleCase } from './format';
 
 describe('rupees', () => {
   it('groups digits the Indian way and always shows paise', () => {
@@ -55,5 +55,18 @@ describe('stockQty', () => {
     expect(stockQty('250', 'ml')).toBe('250 ml');
     expect(stockQty('-1500', 'ml')).toBe('-1.5 l');
     expect(stockQty('12', 'pc')).toBe('12 pc');
+  });
+});
+
+describe('business dates', () => {
+  it('uses the India date, even late at night UTC', () => {
+    expect(indiaDate(new Date('2026-11-09T20:00:00Z'))).toBe('2026-11-10');
+  });
+  it('gives the whole month, including February in a leap year', () => {
+    expect(monthOf('2028-02-14')).toEqual({ from: '2028-02-01', to: '2028-02-29' });
+    expect(monthOf('2026-11-09')).toEqual({ from: '2026-11-01', to: '2026-11-30' });
+  });
+  it('shows a stored date without shifting the day', () => {
+    expect(shortDate('2026-11-09T00:00:00.000Z')).toBe('9 Nov 2026');
   });
 });
