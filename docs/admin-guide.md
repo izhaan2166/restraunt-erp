@@ -8,17 +8,19 @@ The screens are being built, so each task names the API call it uses. The web ap
 
 Run these steps in order. The installer creates the organization, the first branch and your owner account ([deployment.md](deployment.md)).
 
+Most of this setup is done in the staff app under **Manage**: Menu, Staff, Table layout and Branches. The API calls are listed too, for anything not on a screen yet (organization details, combos, branch prices, photos, stock).
+
 1. **Sign in and secure your account.** Sign in with `POST /auth/login`, then change the password with `POST /auth/change-password`.
 2. **Organization details.** `PATCH /organization` sets the legal name, GSTIN, PAN, address, phone and email. They print on every invoice.
-3. **Branches.** `POST /branches` adds each outlet, with a code, name, GST state code, GSTIN, address and phone. Then `PATCH /branches/:id/settings` sets:
-   - `invoicePrefix`: 2–10 letters or digits, for example `BLRIND`. Invoice numbers look like `BLRIND/2627/1`: prefix, financial year (2026-27), then a running number that restarts every April and never has gaps.
+3. **Branches** (**Manage → Branches**, or the API). **New branch** / `POST /branches` adds each outlet, with a code, name, GST state code, GSTIN, address and phone. Then the **Billing** box (`PATCH /branches/:id/settings`) sets:
+   - bill number prefix (`invoicePrefix`): 2–10 letters or digits. A new branch starts with its code without dashes (`BLR-HSR` → `BLRHSR`), for example `BLRIND`. Invoice numbers look like `BLRIND/2627/1`: prefix, financial year (2026-27), then a running number that restarts every April and never has gaps.
    - the service charge %, if you charge one;
    - rounding and the other billing options.
 
    The state code decides CGST+SGST or IGST, so check it carefully.
 4. **Tax rates.** `GET /tax-rates` shows the standard GST slabs (0, 5, 12, 18, 28%). Add a special rate with `POST /tax-rates`. A rate cannot be edited once it has been used, so make a new one instead.
-5. **Kitchen stations.** `POST /branches/:id/kitchen-stations` adds stations such as Main, Beverage and Dessert. Each product is sent to its station's screen.
-6. **Menu.**
+5. **Kitchen stations.** On **Manage → Branches**, or `POST /branches/:id/kitchen-stations`, add stations such as Main, Beverage and Dessert. Each product is sent to its station's screen.
+6. **Menu** (**Manage → Menu**). **New dish** adds a dish with its category, price, GST rate, station, sizes (Half/Full) and add-on groups; the **Add-ons** tab manages add-on groups and their prices. Each dish has an **Available** switch for the branch you are in. A dish code is made from the name if you leave it empty. Managers can edit dishes but only owners can set prices. API equivalents:
    - Categories: `POST /menu/categories`.
    - Products: `POST /menu/products` with the price, tax rate, HSN/SAC, veg flag and station.
    - Variants (Half/Full): `POST /menu/products/:id/variants`.
@@ -26,7 +28,7 @@ Run these steps in order. The installer creates the organization, the first bran
    - Combos: `PUT /menu/products/:id/combo-items`.
    - Branch-specific prices: `PUT /menu/products/:id/branch-prices`.
    - Photos: `POST /menu/products/:id/image`, JPEG, PNG or WebP, up to 2 MB.
-7. **Tables.** `POST /branches/:id/tables` adds tables. `PUT /branches/:id/tables/layout` saves the floor plan.
+7. **Tables** (**Manage → Table layout**). Drag each table to where it stands (or select it and use the arrow keys), then **Save layout**. **Add table** adds one; select a table to rename it, change seats, shape and size, take it out of service or remove it. API: `POST /branches/:id/tables`, `PUT /branches/:id/tables/layout`.
 8. **Stock** (optional, but needed for food-cost reports):
    - Ingredients: `POST /ingredients`.
    - Opening stock: `POST /inventory/stock-counts`.
@@ -53,6 +55,8 @@ Run these steps in order. The installer creates the organization, the first bran
 | Accountant | Accounts | Expenses, supplier bills and payments, financial reports |
 
 ### Adding a person
+
+On **Manage → Staff**, **Add staff** creates the login with a first password and a role, for this branch or (for owners) all branches. Tap a person to change their details, give or remove roles, or deactivate them. With the API:
 
 1. `POST /users` creates the login (email, name, phone).
 2. `POST /users/:id/roles` assigns a role with a `branchId`. Leave `branchId` out to cover every branch. A person can hold different roles in different branches.

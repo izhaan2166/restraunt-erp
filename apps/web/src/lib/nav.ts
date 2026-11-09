@@ -1,4 +1,4 @@
-import { ChefHat, ClipboardList, LayoutGrid, LucideIcon, ShoppingCart } from 'lucide-react';
+import { ChefHat, ClipboardList, LayoutGrid, LucideIcon, Settings, ShoppingCart } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -14,6 +14,15 @@ export const NAV: NavItem[] = [
   { href: '/tables', label: 'Tables', icon: LayoutGrid, anyOf: ['tables.read'] },
   { href: '/orders', label: 'Orders', icon: ClipboardList, anyOf: ['orders.read'] },
   { href: '/kitchen', label: 'Kitchen', icon: ChefHat, anyOf: ['kot.read'] },
+  { href: '/manage', label: 'Manage', icon: Settings, anyOf: ['menu.manage', 'menu.availability.update', 'users.read', 'branches.update', 'settings.read', 'tables.manage'] },
+];
+
+/** Sections of the Manage area, each behind the rights it needs. */
+export const MANAGE_NAV: NavItem[] = [
+  { href: '/manage/menu', label: 'Menu', icon: ClipboardList, anyOf: ['menu.manage', 'menu.availability.update'] },
+  { href: '/manage/staff', label: 'Staff', icon: ClipboardList, anyOf: ['users.read'] },
+  { href: '/manage/tables', label: 'Table layout', icon: LayoutGrid, anyOf: ['tables.manage'] },
+  { href: '/manage/branches', label: 'Branches', icon: ClipboardList, anyOf: ['branches.update', 'settings.read', 'branches.create'] },
 ];
 
 export function visibleNav(can: (p: string) => boolean) {

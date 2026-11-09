@@ -30,6 +30,10 @@ export function BillDialog({ order, open, onClose, onPaid }: { order: Order; ope
   const [loading, setLoading] = useState(false);
   const issueKey = useRef(newKey());
 
+  // Depend on the finalized bill's id, not the invoices array: the order reloads live (new array each
+  // time), and re-running would send the same issue request again while the first is still in flight.
+  const existingId = order.invoices.find((i) => i.status === 'FINALIZED')?.id;
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -37,12 +41,11 @@ export function BillDialog({ order, open, onClose, onPaid }: { order: Order; ope
     setLoading(true);
     (async () => {
       try {
-        const existing = order.invoices.find((i) => i.status === 'FINALIZED');
         let inv: Invoice;
-        if (existing) inv = await api.get<Invoice>(`/invoices/${existing.id}`);
+        if (existingId) inv = await api.get<Invoice>(`/invoices/${existingId}`);
         else {
           try {
-            inv = await api.post<Invoice>('/invoices', { orderId: order.id }, issueKey.current);
+            inv = await issue(order.id, issueKey.current);
           } catch (err) {
             // Another till billed it first: show that bill.
             const id = err instanceof ApiError && err.code === 'ALREADY_INVOICED' ? (err.details as { invoiceId?: string } | undefined)?.invoiceId : undefined;
@@ -60,7 +63,7 @@ export function BillDialog({ order, open, onClose, onPaid }: { order: Order; ope
     return () => {
       cancelled = true;
     };
-  }, [open, order.id, order.invoices]);
+  }, [open, order.id, existingId]);
 
   const paid = invoice?.paymentStatus === 'PAID';
 
@@ -242,4 +245,16 @@ function OpenDrawer({ branchId, onOpened }: { branchId: string; onOpened: () => 
       </Button>
     </div>
   );
+}
+
+/** Issues the bill; if the same request is still being processed (a quick re-open), waits for its answer. */
+async function issue(orderId: string, key: string): Promise<Invoice> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await api.post<Invoice>('/invoices', { orderId }, key);
+    } catch (err) {
+      if (!(err instanceof ApiError && err.code === 'IDEMPOTENCY_IN_PROGRESS') || attempt >= 5) throw err;
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+    }
+  }
 }

@@ -32,6 +32,12 @@ describe('RBAC (e2e)', () => {
       .expect(403);
   });
 
+  it('a branch manager can read the role list (to assign roles in their branch) but not change roles', async () => {
+    const res = await ctx.http().get(`${API}/roles`).set(bearer(tok.managerA)).expect(200);
+    expect(res.body.data.map((r: { key: string }) => r.key)).toContain('WAITER');
+    await ctx.http().post(`${API}/roles`).set(bearer(tok.managerA)).send({ key: 'Y_ROLE', name: 'Y', permissions: [] }).expect(403);
+  });
+
   describe('branch scoping', () => {
     it('a branch manager sees users of their branch only', async () => {
       // Organization-wide listing needs an organization-wide grant.
@@ -291,4 +297,22 @@ describe('RBAC (e2e)', () => {
       await expect(ctx.prisma.auditLog.deleteMany({})).rejects.toThrow(/append-only/);
     });
   });
+
+  describe('new branches', () => {
+    it('start with a document prefix the settings accept, unique in the organization', async () => {
+      const make = async (code: string) => {
+        const res = await ctx.http().post(`${API}/branches`).set(bearer(tok.owner)).send({ code, name: `Branch ${code}`, stateCode: '29' }).expect(201);
+        const settings = await ctx.http().get(`${API}/branches/${res.body.data.id}/settings`).set(bearer(tok.owner)).expect(200);
+        return { id: res.body.data.id as string, prefix: settings.body.data.invoicePrefix as string };
+      };
+      const a = await make('HSR-1');
+      const b = await make('HSR1');
+      expect(a.prefix).toBe('HSR1');
+      expect(b.prefix).toBe('HSR12');
+      // Saving settings without touching the prefix works (a code with "-" used to leave a prefix the form refused).
+      await ctx.http().patch(`${API}/branches/${a.id}/settings`).set(bearer(tok.owner)).send({ invoicePrefix: a.prefix, serviceChargePercent: '5' }).expect(200);
+      await ctx.http().post(`${API}/branches`).set(bearer(tok.managerA)).send({ code: 'NOPE', name: 'Nope', stateCode: '29' }).expect(403);
+    });
+  });
 });
+

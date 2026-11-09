@@ -49,3 +49,15 @@ export function elapsed(seconds: number): string {
 export function titleCase(s: string): string {
   return s.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+/** A dish code made from its name when none is typed, e.g. "Mango Shake (Large)" → "MANGO-SHAKE-LARGE". */
+export function skuFrom(name: string) {
+  return name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40)
+    .replace(/-+$/, '');
+}

@@ -77,3 +77,11 @@ describe('errorMessage', () => {
     expect(errorMessage(new Error('x'))).toBe('Something went wrong. Please try again.');
   });
 });
+
+describe('validation errors', () => {
+  it('shows the first field problem instead of a generic message', () => {
+    expect(errorMessage(new ApiError(400, 'VALIDATION_FAILED', 'Request validation failed', ['name must be longer than or equal to 1 characters']))).toBe(
+      'Name must be longer than or equal to 1 characters',
+    );
+  });
+});

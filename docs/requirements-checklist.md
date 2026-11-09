@@ -2,7 +2,7 @@
 
 Status: ✅ done and tested · 🟡 designed (schema/contract in place), behaviour in a later phase · ⏳ not started · ❌ failing
 
-_Last updated: frontend part 1 (POS, kitchen, tables)._
+_Last updated: frontend part 2 (owner and manager screens)._
 
 ## Phase 1 – Architecture, schema, authentication, RBAC
 
@@ -217,7 +217,7 @@ _Last updated: frontend part 1 (POS, kitchen, tables)._
 
 | Phase | Area | Status |
 |---|---|---|
-| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | 🟡 part 1 done (below) |
+| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | 🟡 parts 1–2 done (below) |
 
 ## Frontend part 1 – Sign-in, POS, kitchen display, tables
 
@@ -240,3 +240,20 @@ _Last updated: frontend part 1 (POS, kitchen, tables)._
 | Works on tablets and phones (responsive layout, large touch targets) | ✅ | layout; checked at 390 px |
 | Web container image and production routing (Caddy: app and API on one origin) | ✅ | `apps/web/Dockerfile`, `ops/production/` |
 | CI: typecheck, unit tests, browser tests against real API and PostgreSQL, image build | ✅ | `.github/workflows/ci.yml` (web job) |
+
+## Frontend part 2 – Owner and manager screens
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Manage area shown only to roles that can use it; each tab checks its own permission | ✅ | `src/lib/nav.ts`, `src/app/(app)/manage/layout.tsx`; kitchen nav e2e |
+| Menu: categories (add, rename, hide), dishes with price, GST rate, HSN/SAC, station, veg mark, sizes and add-on groups | ✅ | `e2e/manage.spec.ts` (dish with two sizes sold at POS) |
+| Add-on groups and add-ons with prices, min/max choices | ✅ | `src/app/(app)/manage/menu/page.tsx` |
+| Prices only editable with `menu.price.update` (owner); managers edit the rest | ✅ | `src/components/product-editor.tsx` (server enforces too) |
+| Sold out per branch, also by kitchen staff; POS shows Sold out and blocks it | ✅ | manage e2e (kitchen marks sold out) |
+| Staff: add with first password and role (branch or all branches), edit, give/remove roles, deactivate | ✅ | manage e2e (manager adds a waiter who signs in) |
+| Branch managers can read roles to assign them, but not change roles | ✅ | `test/rbac.e2e-spec.ts` |
+| Table layout: drag or arrow keys on a grid, save together; add, edit, out of service, remove | ✅ | manage e2e (move, save, add table shows on floor) |
+| Branches: create (owner), details and GSTIN checks, billing settings, kitchen stations | ✅ | manage e2e (new branch, settings saved, station added) |
+| New branches get a valid, unique bill number prefix (codes with "-" no longer block saving settings) | ✅ | `test/rbac.e2e-spec.ts` (new branches) |
+| Bill dialog never re-sends the bill request while the first is in flight | ✅ | `src/components/bill-dialog.tsx`; takeaway e2e |
+

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsed, qty, rupees, titleCase } from './format';
+import { elapsed, qty, rupees, skuFrom, titleCase } from './format';
 
 describe('rupees', () => {
   it('groups digits the Indian way and always shows paise', () => {
@@ -36,5 +36,15 @@ describe('other display helpers', () => {
   it('turns API enums into words', () => {
     expect(titleCase('DINE_IN')).toBe('Dine In');
     expect(titleCase('TAKEAWAY')).toBe('Takeaway');
+  });
+});
+
+describe('skuFrom', () => {
+  it('makes a dish code from the name', () => {
+    expect(skuFrom('Mango Shake (Large)')).toBe('MANGO-SHAKE-LARGE');
+    expect(skuFrom('  Crème brûlée ')).toBe('CREME-BRULEE');
+  });
+  it('gives nothing for a name without latin letters or digits', () => {
+    expect(skuFrom('चाय')).toBe('');
   });
 });

@@ -55,7 +55,7 @@ production); machine-readable spec: [`openapi.json`](./openapi.json) (`GET /api/
 | POST | /users/:id/roles | `users.assign_roles` (target scope) | Anti-escalation enforced |
 | DELETE | /users/:id/roles/:assignmentId | `users.assign_roles` (assignment scope) | Last Super Admin protected |
 | GET | /permissions | `roles.read` (org) | Catalog |
-| GET | /roles, /roles/:id | `roles.read` (org) | With permissions and assigned-user counts |
+| GET | /roles, /roles/:id | `roles.read` (any branch) | With permissions and assigned-user counts; branch managers need it to assign roles |
 | POST | /roles | `roles.manage` (org) | Custom role; only permissions you hold |
 | PUT | /roles/:id/permissions | `roles.manage` (org) | Replace set; not allowed for SUPER_ADMIN |
 | DELETE | /roles/:id | `roles.manage` (org) | Custom roles without assignments only |
