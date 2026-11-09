@@ -1,4 +1,38 @@
-# Caddy gets and renews the TLS certificate for API_DOMAIN automatically (Let's Encrypt).
+# Caddy gets and renews the TLS certificates for APP_DOMAIN and API_DOMAIN automatically (Let's Encrypt).
+
+# The staff web app. API paths go straight to the API on the same origin, so the sign-in cookie
+# works without cross-site requests and live updates use a direct WebSocket.
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	# The metrics endpoint is for Prometheus on the private network only.
+	handle /api/v1/metrics* {
+		respond 404
+	}
+
+	@api path /api/* /realtime/* /uploads/*
+	handle @api {
+		reverse_proxy api:4000 {
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}
+
+# The API on its own name, for integrations and native clients.
 {$API_DOMAIN} {
 	encode zstd gzip
 

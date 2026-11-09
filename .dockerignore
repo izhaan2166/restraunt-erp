@@ -6,3 +6,7 @@
 .git
 docs
 **/uploads
+**/.next
+**/test-results
+**/playwright-report
+**/*.tsbuildinfo

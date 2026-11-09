@@ -162,12 +162,12 @@ sequenceDiagram
 | Passwords | Argon2id (19 MiB, t=2, p=1, OWASP baseline). Policy: 10–128 chars, letters and digits. |
 | Access token | JWT HS256, 15 min, `iss`/`aud` checked, `alg` pinned, carries `sub`, `org`, `sid`. |
 | Refresh token | 256-bit random opaque token, only its SHA-256 stored. 7-day TTL, capped by a 30-day absolute session lifetime. |
-| Rotation | Every refresh issues a new token and marks the old one used (compare-and-set, so two concurrent refreshes cannot both win). |
-| Reuse detection | Presenting an already-rotated token revokes the entire session and is audited as `auth.refresh_token_reuse`. |
+| Rotation | Every refresh issues a new token and marks the old one used (compare-and-set, so a token is rotated exactly once). |
+| Reuse detection | Presenting an already-rotated token revokes the entire session and is audited as `auth.refresh_token_reuse`. One exception: within 10 seconds of the rotation, and only while its replacement has not been used, the old token gets a fresh token instead (a page reloaded mid-refresh, or two tabs refreshing together). The web app also serialises refreshes across tabs with the Web Locks API. |
 | Browser storage | Refresh token in an `HttpOnly; SameSite=Strict; Secure (prod); Path=/api/v1/auth` cookie. Access token kept in memory by the SPA. |
 | CSRF | Cookie is only sent to `/api/v1/auth/*`, is SameSite=Strict, and cookie-based refresh/logout also require an allowed `Origin`. All other endpoints use the `Authorization` header, which browsers never attach automatically. |
 | Native/POS clients | May send the refresh token in the JSON body instead of the cookie. |
-| Brute force | Per-IP `auth` rate-limit bucket on login/refresh/reset, plus account lockout after 5 failures for 15 minutes. Unknown emails take the same time and return the same error. |
+| Brute force | Per-IP `auth` rate-limit bucket on login and password reset (refresh uses the general limit: its token is 256 random bits, and all of a restaurant's tablets usually share one IP), plus account lockout after 5 failures for 15 minutes. Unknown emails take the same time and return the same error. |
 | Password reset | Single-use, 30-minute token emailed as a link; only its hash is stored; the response never reveals whether the email exists; a reset revokes every session. |
 
 ## 7. Authorization (RBAC)
@@ -335,7 +335,7 @@ Definitions in plain words: [reports.md](reports.md).
 | ADR-2 | Integrity rules in the database as well as in services | A bug in one service must not be able to corrupt invoices, stock or audit history. |
 | ADR-3 | Organization-scoped roles, branch-scoped assignments | Fits chains where staff work at one outlet and owners/accountants see all. |
 | ADR-4 | Opaque, hashed, rotating refresh tokens with reuse detection | Stolen refresh tokens are detected; database leaks don't reveal usable tokens. |
-| ADR-5 | Strict refresh (no grace window) | A retried refresh after a lost response signs the device out. Chosen for security; revisit if POS tablets on poor networks are affected. |
+| ADR-5 | Refresh reuse grace of 10 s (revised with the web app) | Was strict. Browser tests showed a page reloaded while a refresh was in flight signed the user out everywhere. The grace applies only while the replacement token is unused, so a replay after the real client moved on is still treated as theft. |
 | ADR-6 | Actor columns (`created_by_id` etc.) are not foreign keys | Keeps history rows independent of user lifecycle; users are soft-deleted, never removed. |
 | ADR-7 | Entire schema designed in Phase 1 | Relationships across billing, inventory and purchasing are decided once; later phases add behaviour. |
 | ADR-8 | class-validator for request DTOs, zod for environment | Native Swagger integration for DTOs; zod gives fail-fast config parsing. |

@@ -49,6 +49,15 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
 
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args: { API_ORIGIN: "http://api:4000" }
+    ports: ["3000:3000"]
+    depends_on:
+      api: { condition: service_started }
+
 volumes:
   pgdata:
   uploads:

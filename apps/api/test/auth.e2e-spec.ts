@@ -116,31 +116,54 @@ describe('Authentication (e2e)', () => {
     it('treats reuse of a rotated token as theft and revokes the whole session', async () => {
       const first = await login(ctx, fx.users.cashierA.email);
       const rotated = (await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }).expect(200)).body.data;
+      // The session has moved on (the replacement was used), so the old token can only be a replay.
+      const third = (await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: rotated.refreshToken }).expect(200)).body.data;
 
       const reuse = await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }).expect(401);
       expect(reuse.body.error.code).toBe('REFRESH_TOKEN_REUSED');
 
-      // The legitimate (newer) token and its access token are dead too.
-      await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: rotated.refreshToken }).expect(401);
-      await ctx.http().get(`${API}/auth/me`).set(bearer(rotated.accessToken)).expect(401);
+      // The legitimate (newest) token and its access token are dead too.
+      await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: third.refreshToken }).expect(401);
+      await ctx.http().get(`${API}/auth/me`).set(bearer(third.accessToken)).expect(401);
       expect(
         await ctx.prisma.auditLog.count({ where: { actorUserId: fx.users.cashierA.id, action: 'auth.refresh_token_reuse' } }),
       ).toBeGreaterThanOrEqual(1);
     });
 
-    it('lets only one of two concurrent refreshes with the same token succeed', async () => {
+    it('accepts a just-rotated token once more within a few seconds (page reload or second tab racing the rotation)', async () => {
+      const first = await login(ctx, fx.users.cashierA.email);
+      await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }).expect(200);
+      // The browser never stored the rotated cookie and sends the old one again.
+      const again = (await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }).expect(200)).body.data;
+      await ctx.http().get(`${API}/auth/me`).set(bearer(again.accessToken)).expect(200);
+      await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: again.refreshToken }).expect(200);
+    });
+
+    it('treats the same replay as theft once the grace window has passed', async () => {
+      const first = await login(ctx, fx.users.cashierA.email);
+      const rotated = (await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }).expect(200)).body.data;
+      const { createHash } = await import('node:crypto');
+      await ctx.prisma.refreshToken.update({
+        where: { tokenHash: createHash('sha256').update(first.refreshToken).digest('hex') },
+        data: { usedAt: new Date(Date.now() - 60_000) },
+      });
+      expect((await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }).expect(401)).body.error.code).toBe('REFRESH_TOKEN_REUSED');
+      await ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: rotated.refreshToken }).expect(401);
+    });
+
+    it('lets two concurrent refreshes with the same token both succeed, rotating it only once', async () => {
       const first = await login(ctx, fx.users.managerA.email);
       const results = await Promise.all([
         ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }),
         ctx.http().post(`${API}/auth/refresh`).send({ refreshToken: first.refreshToken }),
       ]);
-      const statuses = results.map((r) => r.status).sort();
-      expect(statuses).toEqual([200, 401]);
+      expect(results.map((r) => r.status)).toEqual([200, 200]);
       const { createHash } = await import('node:crypto');
       const old = await ctx.prisma.refreshToken.findUniqueOrThrow({
         where: { tokenHash: createHash('sha256').update(first.refreshToken).digest('hex') },
       });
-      expect(await ctx.prisma.refreshToken.count({ where: { sessionId: old.sessionId } })).toBe(2);
+      expect(old.replacedById).not.toBeNull();
+      expect(await ctx.prisma.refreshToken.count({ where: { sessionId: old.sessionId } })).toBe(3);
     });
 
     it('accepts the httpOnly cookie from an allowed origin and rejects foreign origins', async () => {
