@@ -1,18 +1,18 @@
 # Deploying RestaurantOS
 
-This guide takes the API from the repository to a live HTTPS address. Two layouts are covered:
+This guide takes RestaurantOS (the API and the staff web app) from the repository to live HTTPS addresses. Two layouts are covered:
 
 1. **One server** (most restaurant groups): Docker Compose with Caddy, PostgreSQL and Redis on the same machine. Files are in `ops/production/`.
 2. **Managed cloud**: the same container image on a container service, with managed PostgreSQL, Redis and S3.
 
-Both run the same image, built from `apps/api/Dockerfile`.
+Both run the same two images, built from `apps/api/Dockerfile` and `apps/web/Dockerfile`.
 
 ## What you need
 
 | Item | Notes |
 |---|---|
 | Linux server | 2 vCPU and 4 GB RAM is enough for about 20 branches. Ubuntu 24.04 LTS with Docker Engine 27+ and the compose plugin. |
-| Domain name | For example `api.yourrestaurant.in`, with its DNS `A` record pointing at the server. |
+| Domain names | For example `pos.yourrestaurant.in` for the staff app and `api.yourrestaurant.in` for the API, both with DNS `A` records pointing at the server. |
 | Email account for sending | Any SMTP service: Amazon SES (Mumbai region), Zoho Mail, SendGrid, Google Workspace. Used for password resets. |
 | Off-site storage for backups | Any S3-compatible bucket, such as AWS S3, Cloudflare R2 or Backblaze B2. |
 
@@ -28,10 +28,11 @@ Edit `.env.production`. The API refuses to start in production when a setting be
 | Setting | Value |
 |---|---|
 | `NODE_ENV` | `production` |
-| `API_DOMAIN` | `api.yourrestaurant.in`. Caddy gets the TLS certificate for this name. |
+| `APP_DOMAIN` | `pos.yourrestaurant.in`, where staff open the app. Caddy serves the web app here and sends `/api`, `/realtime` and `/uploads` on this name straight to the API. |
+| `API_DOMAIN` | `api.yourrestaurant.in`, the API on its own name. Caddy gets TLS certificates for both names. |
 | `POSTGRES_PASSWORD` | Generate with `openssl rand -base64 32`. |
 | `JWT_ACCESS_SECRET` | Generate with `openssl rand -base64 48`. Placeholder-looking values are rejected. |
-| `CORS_ORIGINS` | The `https://` addresses of the web app, comma-separated. `*`, `http://` and `localhost` are rejected. |
+| `CORS_ORIGINS` | The `https://` addresses of the web app, comma-separated, for example `https://pos.yourrestaurant.in`. `*`, `http://` and `localhost` are rejected. |
 | `APP_PUBLIC_URL` | The `https://` address of the web app. Password-reset links point here. |
 | `MAIL_TRANSPORT` | `smtp` |
 | `SMTP_URL` | For example `smtps://USER:PASS@email-smtp.ap-south-1.amazonaws.com:465`. |
@@ -52,8 +53,8 @@ docker compose -f ops/production/docker-compose.prod.yml logs -f migrate api
 On the first start:
 
 1. `migrate` applies every database migration and loads the reference data: GST rates, units and the permission catalogue.
-2. `api` starts once `migrate` has succeeded.
-3. Caddy obtains the certificate.
+2. `api` starts once `migrate` has succeeded, then `web`.
+3. Caddy obtains the certificates. Staff open `https://pos.yourrestaurant.in`.
 
 Then check:
 
@@ -129,7 +130,7 @@ The API is stateless:
 
 To run it this way:
 
-- **Image:** build `docker build -f apps/api/Dockerfile -t <registry>/restaurant-os-api:<version> .` and push it.
+- **Images:** build `docker build -f apps/api/Dockerfile -t <registry>/restaurant-os-api:<version> .` and `docker build -f apps/web/Dockerfile --build-arg API_ORIGIN=<internal API URL> -t <registry>/restaurant-os-web:<version> .`, and push them. Route `/api`, `/realtime` and `/uploads` on the app's domain to the API and everything else to the web container, so the app and API share one origin.
 - **Migrations:** run `npx prisma migrate deploy && node dist-seed/prisma/seed.js` as a one-off release task before new instances start, as the `migrate` service does.
 - **PostgreSQL 16:** for example AWS RDS or Aurora in `ap-south-1`. Turn on automated backups with point-in-time recovery, and set `DATABASE_URL`, adding `&connection_limit=10` per instance.
 - **Redis 7:** for example ElastiCache or Upstash. Set `REDIS_URL`. Redis only holds rate-limit counters; losing it loses nothing else.

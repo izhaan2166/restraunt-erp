@@ -35,7 +35,7 @@ production); machine-readable spec: [`openapi.json`](./openapi.json) (`GET /api/
 | Method | Path | Permission (scope) | Notes |
 |---|---|---|---|
 | POST | /auth/login | public, auth rate limit | `{ email, password }` → `{ accessToken, expiresIn, refreshToken, refreshExpiresAt }` + cookie |
-| POST | /auth/refresh | public, auth rate limit | Body `refreshToken` or cookie. Rotates; reuse revokes the session |
+| POST | /auth/refresh | public, general rate limit | Body `refreshToken` or cookie. Rotates; a replay of a rotated token revokes the session (except a retry within 10 s while the replacement is still unused: a reload or a second tab racing the rotation) |
 | POST | /auth/logout | public | Ends the session identified by the refresh token/cookie → 204 |
 | POST | /auth/logout-all | signed in | Ends every session of the user → 204 |
 | POST | /auth/forgot-password | public, auth rate limit | Always 202 with the same message |

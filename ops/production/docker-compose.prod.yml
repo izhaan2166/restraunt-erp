@@ -1,4 +1,4 @@
-# Production stack on one server: Caddy (automatic HTTPS) → API, with PostgreSQL and Redis on a
+# Production stack on one server: Caddy (automatic HTTPS) → web app and API, with PostgreSQL and Redis on a
 # private network. See docs/deployment.md. Run from the repository root:
 #   docker compose -f ops/production/docker-compose.prod.yml --env-file .env.production up -d --build
 name: restaurant-os
@@ -10,12 +10,14 @@ services:
     ports: ["80:80", "443:443", "443:443/udp"]
     environment:
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env.production}
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env.production}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
       api: { condition: service_healthy }
+      web: { condition: service_healthy }
     networks: [edge]
 
   postgres:
@@ -72,6 +74,17 @@ services:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
     networks: [edge, backend]
+
+  # The staff web app (Next.js). Caddy serves it on APP_DOMAIN and sends API paths to `api`.
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args: { API_ORIGIN: "http://api:4000" }
+    restart: unless-stopped
+    depends_on:
+      api: { condition: service_healthy }
+    networks: [edge]
 
 volumes:
   pgdata:

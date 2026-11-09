@@ -10,6 +10,9 @@ import { PASSWORD_POLICY, PasswordService, checkPasswordPolicy } from './passwor
 import { TokenService, randomToken, sha256 } from './token.service';
 import type { AuthPrincipal } from './principal';
 
+/** How long a just-rotated refresh token is still accepted (see `withinReuseGrace`). */
+export const REFRESH_REUSE_GRACE_MS = 10_000;
+
 export interface IssuedTokens {
   accessToken: string;
   expiresIn: number;
@@ -116,7 +119,7 @@ export class AuthService {
     if (!stored) throw Errors.unauthenticated('INVALID_REFRESH_TOKEN', 'Refresh token is invalid');
 
     const { session } = stored;
-    if (stored.usedAt || stored.revokedAt) {
+    if (stored.revokedAt || (stored.usedAt && !(await this.withinReuseGrace(stored, now)))) {
       // A rotated token came back: assume it was stolen and kill the whole session family.
       await this.revokeSession(session.id, 'refresh_token_reuse');
       await this.audit.record({
@@ -140,16 +143,22 @@ export class AuthService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      // Compare-and-set: of two concurrent refreshes with the same token only one wins.
+      // Compare-and-set: of two concurrent refreshes with the same token only one rotates it.
       const claimed = await tx.refreshToken.updateMany({
         where: { id: stored.id, usedAt: null, revokedAt: null },
         data: { usedAt: now },
       });
-      if (claimed.count !== 1) {
-        throw Errors.unauthenticated('REFRESH_TOKEN_REUSED', 'Refresh token was already used');
-      }
       const next = await this.issueRefreshToken(tx, session.id, session.expiresAt);
-      await tx.refreshToken.update({ where: { id: stored.id }, data: { replacedById: next.id } });
+      if (claimed.count === 1) {
+        await tx.refreshToken.update({ where: { id: stored.id }, data: { replacedById: next.id } });
+      } else {
+        // Lost the race (or a retry inside the grace window): allowed only while the token that
+        // replaced this one is still unused, i.e. nobody has moved the session forward yet.
+        const fresh = await tx.refreshToken.findUniqueOrThrow({ where: { id: stored.id } });
+        if (fresh.revokedAt || !(await this.withinReuseGrace(fresh, now, tx))) {
+          throw Errors.unauthenticated('REFRESH_TOKEN_REUSED', 'Refresh token was already used');
+        }
+      }
       await tx.session.update({ where: { id: session.id }, data: { lastUsedAt: now, ip: meta.ip } });
       const access = this.tokens.signAccessToken({ sub: session.userId, org: session.organizationId, sid: session.id });
       return {
@@ -159,6 +168,19 @@ export class AuthService {
         refreshExpiresAt: next.expiresAt,
       };
     });
+  }
+
+  /**
+   * A token used moments ago may legitimately come back once more: two tabs refreshing at the same
+   * time, or a page reloaded before the browser stored the rotated cookie. That is accepted only
+   * for a few seconds and only while the replacement token has not been used itself; any later
+   * replay is treated as theft.
+   */
+  private async withinReuseGrace(t: { usedAt: Date | null; replacedById: string | null }, now: Date, db: Tx | PrismaService = this.prisma): Promise<boolean> {
+    if (!t.usedAt || now.getTime() - t.usedAt.getTime() > REFRESH_REUSE_GRACE_MS) return false;
+    if (!t.replacedById) return true;
+    const replacement = await db.refreshToken.findUnique({ where: { id: t.replacedById }, select: { usedAt: true, revokedAt: true } });
+    return !!replacement && !replacement.usedAt && !replacement.revokedAt;
   }
 
   // ───────────── Logout ─────────────

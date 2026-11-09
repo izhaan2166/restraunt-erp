@@ -2,7 +2,7 @@
 
 Status: ✅ done and tested · 🟡 designed (schema/contract in place), behaviour in a later phase · ⏳ not started · ❌ failing
 
-_Last updated: Phase 8._
+_Last updated: frontend part 1 (POS, kitchen, tables)._
 
 ## Phase 1 – Architecture, schema, authentication, RBAC
 
@@ -112,7 +112,7 @@ _Last updated: Phase 8._
 | PostgreSQL stays the source of truth (events are notifications; details via REST) | ✅ | design, `docs/architecture.md` §9 |
 | `inventory.low_stock` event | ✅ | Phase 5 inventory e2e |
 | `shift.closed` event | ✅ | Phase 6 cash e2e |
-| Kitchen and POS screens (frontend) | 🟡 | Next.js frontend |
+| Kitchen and POS screens (frontend) | ✅ | `apps/web` POS and kitchen screens; `apps/web/e2e/service.spec.ts` |
 
 ## Phase 5 – Inventory, recipes, suppliers and purchasing
 
@@ -217,4 +217,26 @@ _Last updated: Phase 8._
 
 | Phase | Area | Status |
 |---|---|---|
-| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | ⏳ |
+| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | 🟡 part 1 done (below) |
+
+## Frontend part 1 – Sign-in, POS, kitchen display, tables
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Sign-in, forgot and reset password; session restored after reload; token kept in memory only | ✅ | `e2e/service.spec.ts` (sign-in) |
+| Navigation shows only the screens the user's role allows; kitchen staff land on the kitchen | ✅ | `src/lib/nav.ts`, sign-in e2e |
+| Branch switcher for users in several branches | ✅ | `src/app/(app)/layout.tsx` |
+| POS: menu by category with search, veg/non-veg marks, sizes, add-ons, kitchen notes | ✅ | dine-in e2e |
+| POS: dine-in (per table), takeaway and delivery (customer and address) | ✅ | dine-in and takeaway e2e |
+| All totals and taxes come from the server; the screen never calculates money | ✅ | `src/lib/format.ts` (display only), dine-in e2e checks ₹588.00 |
+| Fast taps never race: changes are queued against the latest order version; conflicts reload | ✅ | `src/lib/use-order.ts` |
+| Send to kitchen (first KOT and later KOTs); remove sent items with a reason | ✅ | dine-in e2e |
+| Bill once (retry-safe), split payments across cash/UPI/card, open cash drawer when needed, print PDF | ✅ | dine-in e2e (₹500 cash + ₹88 UPI) |
+| Waiters cannot bill or take payments | ✅ | permissions e2e |
+| Kitchen display: New / Cooking / Ready columns, station filter, tap item or ticket, waiting timer with late warning | ✅ | dine-in e2e |
+| Live updates on kitchen, POS, tables and orders, with polling fallback and resync after reconnect | ✅ | dine-in e2e (ticket and "Ready" arrive without reload) |
+| Table floor: tables at saved positions, colour by state, seat guests, free after payment | ✅ | dine-in and table e2e |
+| Orders list with filters, search and paging | ✅ | `src/app/(app)/orders/page.tsx` |
+| Works on tablets and phones (responsive layout, large touch targets) | ✅ | layout; checked at 390 px |
+| Web container image and production routing (Caddy: app and API on one origin) | ✅ | `apps/web/Dockerfile`, `ops/production/` |
+| CI: typecheck, unit tests, browser tests against real API and PostgreSQL, image build | ✅ | `.github/workflows/ci.yml` (web job) |

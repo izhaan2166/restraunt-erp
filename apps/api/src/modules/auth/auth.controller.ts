@@ -31,8 +31,10 @@ export class AuthController {
     return this.respondWithTokens(res, tokens);
   }
 
+  // Not in the strict auth bucket: every page load refreshes, and a restaurant's tablets usually
+  // share one public IP. A refresh token is 256 random bits, so there is nothing to guess; the
+  // general per-IP limit still applies.
   @Public()
-  @AuthThrottle()
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate the refresh token and get a new access token' })
