@@ -70,10 +70,16 @@ Open the app at your restaurant's address (for example `https://pos.yourrestaura
 
 ## Storekeeper: stock
 
-- **Receive goods** against a purchase order (`POST /purchase-orders/:id/receipts`). Stock goes up, and the supplier bill can then be matched.
-- **Wastage** (spoilt, spilt, expired): `POST /inventory/wastage`, with a reason.
-- **Stock count:** count, enter the numbers (`POST /inventory/stock-counts`), and the system records the difference.
-- **Low stock** shows everything below its minimum level (`GET /inventory/low-stock`).
+Everything is under **Stock** in the top bar.
+
+- **Stock** tab: every ingredient with what is on the shelf; **Low** marks anything below its minimum. Tick **Running low only** to see what to order.
+- **New ingredient:** give it a name and whether it is counted in grams, millilitres or pieces. You can still buy and enter it in kg or litres.
+- **Stock count:** enter what is actually on the shelf (leave lines empty to skip them). For the very first count, add the cost per kg or litre so stock has a value.
+- Tap an ingredient to **add or remove stock** with a reason, record **wastage** (spoilt, spilt, expired), or set its **minimum level**. **History** lists every change.
+- **Purchase orders:** **New purchase order**, pick the supplier, then **Add items running low** fills the list. The owner approves it. When the goods arrive, open the order and tap **Receive delivery**; change the price only if the bill differs. Stock goes up at the price paid.
+- **Delivery without order** is for goods bought on the spot, such as at the market.
+- **Recipes:** pick a dish and list what one portion uses, with a waste % if some is lost in prep. Every sale then takes those amounts out of stock, and you see what a portion costs.
+- **Suppliers:** add who you buy from, with phone, GSTIN and how many days you have to pay.
 
 ## When something goes wrong
 

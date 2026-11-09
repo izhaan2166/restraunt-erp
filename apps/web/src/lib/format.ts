@@ -61,3 +61,13 @@ export function skuFrom(name: string) {
     .slice(0, 40)
     .replace(/-+$/, '');
 }
+
+const BIGGER: Record<string, string> = { g: 'kg', ml: 'l' };
+
+/** A stock quantity for display: 4800 g reads "4.8 kg", 250 ml "250 ml", 12 pc "12 pc". The server keeps the exact base amount. */
+export function stockQty(q: string | number, unit: string): string {
+  const n = Number(q);
+  const fmt = (v: number) => v.toLocaleString('en-IN', { maximumFractionDigits: 3 });
+  if (BIGGER[unit] && Math.abs(n) >= 1000) return `${fmt(n / 1000)} ${BIGGER[unit]}`;
+  return `${fmt(n)} ${unit}`;
+}

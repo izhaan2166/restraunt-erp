@@ -16,7 +16,8 @@ receipts, Prometheus metrics and alerts, end-to-end and load tests, production d
 HTTPS, backups and restore, admin and user guides).** Frontend part 1 is done: the Next.js staff
 app with sign-in, POS (dine-in, takeaway, delivery, bill and payment), kitchen display, live table
 floor and orders list. Frontend part 2 is done: owner and manager screens for the menu, staff and
-roles, table layout and branches. Next: inventory, expenses/cash/staff and report screens.
+roles, table layout and branches. Frontend part 3 is done: stock, recipes, suppliers and purchase
+orders. Next: expenses/cash/staff and report screens.
 
 | | |
 |---|---|

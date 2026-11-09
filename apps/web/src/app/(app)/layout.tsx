@@ -58,7 +58,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         {me.branches.length > 1 ? (
           <label className="flex items-center gap-2 text-sm">
             <span className="sr-only">Branch</span>
-            <select value={branch.id} onChange={(e) => setBranch(e.target.value)} className="h-9 max-w-40 rounded-lg border border-stone-300 bg-white px-2 text-sm" data-testid="branch-switcher">
+            <select aria-label="Branch" value={branch.id} onChange={(e) => setBranch(e.target.value)} className="h-9 max-w-40 rounded-lg border border-stone-300 bg-white px-2 text-sm" data-testid="branch-switcher">
               {me.branches.map((b) => (
                 <option key={b.id} value={b.id}>
                   {b.name}

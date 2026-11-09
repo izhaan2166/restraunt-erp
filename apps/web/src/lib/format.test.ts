@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsed, qty, rupees, skuFrom, titleCase } from './format';
+import { elapsed, qty, rupees, skuFrom, stockQty, titleCase } from './format';
 
 describe('rupees', () => {
   it('groups digits the Indian way and always shows paise', () => {
@@ -46,5 +46,14 @@ describe('skuFrom', () => {
   });
   it('gives nothing for a name without latin letters or digits', () => {
     expect(skuFrom('चाय')).toBe('');
+  });
+});
+
+describe('stockQty', () => {
+  it('shows big gram and millilitre amounts in kg and litres', () => {
+    expect(stockQty('4800', 'g')).toBe('4.8 kg');
+    expect(stockQty('250', 'ml')).toBe('250 ml');
+    expect(stockQty('-1500', 'ml')).toBe('-1.5 l');
+    expect(stockQty('12', 'pc')).toBe('12 pc');
   });
 });

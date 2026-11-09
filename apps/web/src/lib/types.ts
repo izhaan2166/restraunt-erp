@@ -255,3 +255,128 @@ export interface Role {
   isSystem: boolean;
   permissions: string[];
 }
+
+export interface Unit {
+  id: string;
+  code: string;
+  name: string;
+  dimension: 'MASS' | 'VOLUME' | 'COUNT';
+  factorToBase: string;
+}
+
+export interface Ingredient {
+  id: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  isActive: boolean;
+  baseUnit: Unit;
+}
+
+/** One ingredient's stock in a branch. Quantities are in the ingredient's base unit (g, ml or pc). */
+export interface StockRow {
+  ingredientId: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  unit: string;
+  quantity: string;
+  minimumLevel: string;
+  averageCost: string;
+  stockValue: string;
+  isLow: boolean;
+  isNegative: boolean;
+  updatedAt: string;
+}
+
+export interface StockMovement {
+  id: string;
+  ingredientId: string;
+  ingredientName: string;
+  type: string;
+  quantity: string;
+  unit: string;
+  unitCost: string;
+  value: string;
+  balanceAfter: string;
+  note: string | null;
+  referenceType: string | null;
+  createdAt: string;
+}
+
+export interface RecipeLine {
+  ingredientId: string;
+  ingredientName: string;
+  quantity: string;
+  unit: string;
+  wastagePercent: string;
+  perPortion: string;
+  baseUnit: string;
+  estimatedCost?: string;
+}
+
+export interface Recipe {
+  id: string;
+  productId: string;
+  productName: string;
+  variantId: string | null;
+  yieldQuantity: string;
+  items: RecipeLine[];
+  estimatedCostPerPortion?: string;
+  updatedAt: string;
+}
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contactPerson: string | null;
+  phone: string | null;
+  email: string | null;
+  gstin: string | null;
+  stateCode: string | null;
+  address: string | null;
+  paymentTermsDays: number | null;
+  isActive: boolean;
+}
+
+export type PurchaseOrderStatus = 'DRAFT' | 'ORDERED' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED';
+
+export interface PurchaseOrderItem {
+  id: string;
+  ingredientId: string;
+  quantity: string;
+  receivedQuantity: string;
+  remainingQuantity: string;
+  unitPrice: string;
+  taxRate: string;
+  lineTotal: string;
+  ingredient: { id: string; name: string };
+  unit: { code: string };
+}
+
+export interface PurchaseOrder {
+  id: string;
+  poNumber: string;
+  status: PurchaseOrderStatus;
+  orderDate: string;
+  expectedDate: string | null;
+  subtotal: string;
+  taxTotal: string;
+  total: string;
+  notes: string | null;
+  cancelReason: string | null;
+  createdById: string;
+  supplier: { id: string; name: string; gstin: string | null };
+  items: PurchaseOrderItem[];
+}
+
+export interface GoodsReceipt {
+  id: string;
+  grnNumber: string;
+  receivedAt: string;
+  notes: string | null;
+  supplier: { id: string; name: string };
+  purchaseOrder: { id: string; poNumber: string } | null;
+  items: { id: string; quantity: string; unitPrice: string; ingredient: { id: string; name: string }; unit: { code: string } }[];
+  totalValue: string;
+}
