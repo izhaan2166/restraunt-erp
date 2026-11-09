@@ -169,6 +169,16 @@ export async function request<T>(path: string, opts: RequestOptions = {}): Promi
 export const api = {
   get: <T>(path: string, query?: RequestOptions['query'], signal?: AbortSignal) => request<T>(path, { query, signal }).then((r) => r.data),
   page: <T>(path: string, query?: RequestOptions['query']) => request<T[]>(path, { query }).then((r) => ({ items: r.data, meta: r.meta as unknown as PageMeta })),
+  /** Every row of a paged list (100 per request), for admin lists that must show everything. */
+  all: async <T>(path: string, query?: RequestOptions['query']): Promise<T[]> => {
+    const rows: T[] = [];
+    for (let page = 1; ; page++) {
+      const r = await request<T[]>(path, { query: { ...query, page, pageSize: 100 } });
+      rows.push(...r.data);
+      const meta = r.meta as unknown as PageMeta | undefined;
+      if (!meta || page >= meta.totalPages) return rows;
+    }
+  },
   post: <T>(path: string, body?: unknown, idempotencyKey?: string) => request<T>(path, { method: 'POST', body: body ?? {}, idempotencyKey }).then((r) => r.data),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body }).then((r) => r.data),
   put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body }).then((r) => r.data),
@@ -193,6 +203,10 @@ export function newKey() {
 /** A short message for staff, with the reference code when the server gave one. */
 export function errorMessage(err: unknown): string {
   if (err instanceof ApiError) {
+    if (err.code === 'VALIDATION_FAILED' && Array.isArray(err.details) && typeof err.details[0] === 'string') {
+      const first = err.details[0] as string;
+      return first.charAt(0).toUpperCase() + first.slice(1);
+    }
     const friendly = FRIENDLY[err.code];
     const msg = friendly ?? err.message;
     return err.requestId && err.status >= 500 ? `${msg} (reference ${err.requestId.slice(0, 8)})` : msg;

@@ -15,8 +15,8 @@ PDF exports, invoice PDF) and Phase 8 (security hardening, Redis rate limits, SM
 receipts, Prometheus metrics and alerts, end-to-end and load tests, production deployment with
 HTTPS, backups and restore, admin and user guides).** Frontend part 1 is done: the Next.js staff
 app with sign-in, POS (dine-in, takeaway, delivery, bill and payment), kitchen display, live table
-floor and orders list. Next: admin screens (menu, staff, branches, table layout), then inventory,
-expenses/cash/staff and report screens.
+floor and orders list. Frontend part 2 is done: owner and manager screens for the menu, staff and
+roles, table layout and branches. Next: inventory, expenses/cash/staff and report screens.
 
 | | |
 |---|---|

@@ -122,6 +122,7 @@ export interface TableRow {
   reservationName: string | null;
   reservedUntil: string | null;
   version: number;
+  isActive?: boolean;
   session: { id: string; guestCount: number | null; openedAt: string; mergedIntoTableId: string | null; mergedTableIds: string[] } | null;
 }
 
@@ -180,4 +181,77 @@ export interface CashSession {
   expectedCash: string;
   openedAt: string;
   user: { id: string; fullName: string };
+}
+
+/** Admin view of a dish (`/menu/products`). */
+export interface AdminProduct {
+  id: string;
+  categoryId: string;
+  taxRateId: string | null;
+  sku: string | null;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  basePrice: string;
+  hsnSac: string | null;
+  isVeg: boolean;
+  stationCode: string | null;
+  isCombo: boolean;
+  isActive: boolean;
+  isAvailable: boolean;
+  sortOrder: number;
+  category: { id: string; name: string };
+  variants: { id: string; name: string; price: string; isDefault: boolean; isActive: boolean; sortOrder: number }[];
+  /** Present on the single-dish read. */
+  modifierGroups?: { groupId: string; group: { id: string; name: string } }[];
+}
+
+export interface AdminCategory {
+  id: string;
+  name: string;
+  parentId: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  _count: { products: number };
+}
+
+export interface ModifierGroup {
+  id: string;
+  name: string;
+  minSelect: number;
+  maxSelect: number;
+  modifiers: { id: string; name: string; price: string; isActive: boolean }[];
+}
+
+export interface TaxRate {
+  id: string;
+  name: string;
+  rate: string;
+  isActive: boolean;
+}
+
+export interface KitchenStation {
+  id: string;
+  code: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface StaffUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  isActive: boolean;
+  lastLoginAt: string | null;
+  roles: { assignmentId: string; roleId: string; roleKey: string; roleName: string; branchId: string | null }[];
+}
+
+export interface Role {
+  id: string;
+  key: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+  permissions: string[];
 }

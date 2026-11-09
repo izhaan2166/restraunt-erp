@@ -1,24 +1,5 @@
-import { Browser, expect, Page, test } from '@playwright/test';
-
-const PASSWORD = 'ChangeMe@2026';
-const email = (who: string) => `${who}@demo.restaurantos.local`;
-
-async function signIn(page: Page, who: string) {
-  await page.goto('/login');
-  await page.getByLabel('Work email').fill(email(who));
-  await page.getByLabel('Password').fill(PASSWORD);
-  await page.getByRole('button', { name: 'Sign in' }).click();
-  // Wait for the role's home screen, so the next navigation does not race the redirect to it.
-  await page.waitForURL((u) => u.pathname !== '/' && !u.pathname.startsWith('/login'));
-  await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible();
-}
-
-async function asUser(browser: Browser, who: string) {
-  const ctx = await browser.newContext();
-  const page = await ctx.newPage();
-  await signIn(page, who);
-  return page;
-}
+import { expect, test } from '@playwright/test';
+import { asUser, email, PASSWORD, signIn } from './helpers';
 
 test.describe('sign-in', () => {
   test('a wrong password is refused with a plain message', async ({ page }) => {
@@ -48,11 +29,11 @@ test.describe('sign-in', () => {
     expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('eyJ');
   });
 
-  test('kitchen staff only see the kitchen screen', async ({ page }) => {
+  test('kitchen staff see the kitchen screen and only the menu switches', async ({ page }) => {
     await signIn(page, 'kitchen.blr');
     await expect(page).toHaveURL(/\/kitchen$/);
     const nav = page.getByRole('navigation', { name: 'Main' });
-    await expect(nav.getByRole('link')).toHaveText(['Kitchen']);
+    await expect(nav.getByRole('link')).toHaveText(['Kitchen', 'Manage']);
   });
 });
 

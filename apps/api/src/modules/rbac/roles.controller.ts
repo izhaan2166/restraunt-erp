@@ -21,14 +21,16 @@ export class RolesController {
   }
 
   @Get('roles')
-  @RequirePermissions('roles.read', 'org')
+  // A branch manager assigns roles in their branch, so they must be able to see what each role grants.
+  @RequirePermissions('roles.read', 'any')
   @ApiOperation({ summary: 'Roles of the organization with their permissions' })
   list(@CurrentUser() user: AuthPrincipal) {
     return this.roles.list(user.organizationId);
   }
 
   @Get('roles/:id')
-  @RequirePermissions('roles.read', 'org')
+  // A branch manager assigns roles in their branch, so they must be able to see what each role grants.
+  @RequirePermissions('roles.read', 'any')
   get(@CurrentUser() user: AuthPrincipal, @Param('id', ParseUUIDPipe) id: string) {
     return this.roles.get(user.organizationId, id);
   }

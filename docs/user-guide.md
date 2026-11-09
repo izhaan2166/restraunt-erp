@@ -28,7 +28,7 @@ Open the app at your restaurant's address (for example `https://pos.yourrestaura
 - Tickets appear in three columns: **New**, **Cooking** and **Ready to serve**, each with the table (or Takeaway/Delivery), the ticket number, add-ons, the waiter's note in red, and a timer. A ticket waiting more than 15 minutes is outlined in red.
 - Use the station chips at the top to see only your station.
 - Tap **Start cooking** on a ticket, then **Mark ready**. You can also tap a single item to move just that item. When every item of an order is ready, the waiter's screen shows it.
-- **Out of something?** Mark the product **Unavailable** ("86") _(screen coming)_. It disappears from the order screens in this branch until you turn it back on.
+- **Out of something?** Open **Manage → Menu** and switch the dish's **Available** off ("86"); the order screens show it as **Sold out**. It disappears from the order screens in this branch until you turn it back on.
 - The top right says **Live** while updates arrive instantly. If the Wi-Fi drops it says **Offline** and the screen refreshes every 10 seconds; on reconnect it catches up and no ticket is skipped.
 
 ## Cashier: billing and payment

@@ -36,7 +36,7 @@ export class BranchesService {
     return this.prisma.$transaction(async (tx) => {
       const branch = await tx.branch.create({ data: { ...dto, organizationId: actor.organizationId } });
       // Each branch numbers its invoices with its own prefix (invoice numbers are unique per organization).
-      await tx.branchSettings.create({ data: { branchId: branch.id, organizationId: actor.organizationId, invoicePrefix: branch.code.slice(0, 10) } });
+      await tx.branchSettings.create({ data: { branchId: branch.id, organizationId: actor.organizationId, invoicePrefix: await freePrefix(tx, actor.organizationId, branch.code) } });
       await this.audit.record(
         {
           organizationId: actor.organizationId,
@@ -78,7 +78,10 @@ export class BranchesService {
 
   async settings(actor: AuthPrincipal, branchId: string) {
     const branch = await this.get(actor, branchId);
-    return branch.settings ?? this.prisma.branchSettings.create({ data: { branchId, organizationId: actor.organizationId, invoicePrefix: branch.code.slice(0, 10) } });
+    return (
+      branch.settings ??
+      this.prisma.branchSettings.create({ data: { branchId, organizationId: actor.organizationId, invoicePrefix: await freePrefix(this.prisma, actor.organizationId, branch.code) } })
+    );
   }
 
   async updateSettings(actor: AuthPrincipal, branchId: string, dto: UpdateBranchSettingsDto, meta: RequestMeta) {
@@ -108,4 +111,21 @@ export class BranchesService {
       return after;
     });
   }
+}
+
+/**
+ * The document prefix a new branch starts with: its code without the characters a prefix may not have
+ * (a code such as BLR-HSR becomes BLRHSR), made unique in the organization with a number if needed.
+ */
+export async function freePrefix(db: Pick<Prisma.TransactionClient, 'branchSettings'>, organizationId: string, code: string) {
+  const base = (code.toUpperCase().replace(/[^A-Z0-9]/g, '') || 'BR').padEnd(2, '0').slice(0, 10);
+  const taken = new Set(
+    (await db.branchSettings.findMany({ where: { organizationId, invoicePrefix: { startsWith: base.slice(0, 6) } }, select: { invoicePrefix: true } })).map((s) => s.invoicePrefix),
+  );
+  for (let n = 1; n < 1000; n++) {
+    const suffix = n === 1 ? '' : String(n);
+    const candidate = base.slice(0, 10 - suffix.length) + suffix;
+    if (!taken.has(candidate)) return candidate;
+  }
+  throw Errors.conflict('DUPLICATE_PREFIX', 'Could not find a free document prefix for this branch; set one in its settings');
 }

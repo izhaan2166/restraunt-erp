@@ -41,6 +41,8 @@ export default defineConfig({
         JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET ?? 'e2e-only-secret-0123456789abcdefghijklmnop',
         CORS_ORIGINS: `http://localhost:${WEB_PORT}`,
         LOG_LEVEL: 'warn',
+        // Every test user signs in from the same address; the per-IP sign-in limit would block the suite.
+        AUTH_RATE_LIMIT_PER_MINUTE: '1000',
         ...(process.env.REDIS_URL ? { REDIS_URL: process.env.REDIS_URL } : {}),
       },
     },
