@@ -19,6 +19,16 @@ describe('request', () => {
     expect(init.headers).toMatchObject({ Authorization: 'Bearer t1', 'Idempotency-Key': 'key-1' });
   });
 
+  it('uploads a file as multipart form data, without a JSON content type', async () => {
+    const f = vi.fn(async () => json(201, { data: { id: 'e1' } }));
+    setFetch(f as unknown as typeof fetch);
+    await api.upload('/expenses/e1/receipt', 'receipt', new Blob(['x'], { type: 'image/png' }));
+    const [, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(init.body).toBeInstanceOf(FormData);
+    expect((init.body as FormData).get('receipt')).toBeInstanceOf(Blob);
+    expect(init.headers).not.toHaveProperty('Content-Type');
+  });
+
   it('drops empty query values', async () => {
     const f = vi.fn(async () => json(200, { data: [] }));
     setFetch(f as unknown as typeof fetch);

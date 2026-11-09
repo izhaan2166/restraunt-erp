@@ -46,7 +46,8 @@ Open the app at your restaurant's address (for example `https://pos.yourrestaura
 5. **Print** the invoice with **Print bill** (a PDF opens).
 6. **Takeaway and delivery.** On **POS**, pick **Takeaway** or **Delivery**, enter the customer's name and phone (and the address for delivery), add items, send to the kitchen and bill as above. When the customer collects, tap **Handed to customer**.
 7. **Business customer?** Enter their GSTIN and name before billing so the invoice shows them as the buyer _(screen coming)_.
-8. **Close your drawer** at the end: count the cash and enter it _(screen coming)_. The system shows what it expected and records any difference.
+8. **Your drawer during the shift.** Go to **Money → Cash drawer**. It shows what should be in the drawer and why (opening cash, cash sales, refunds, cash added or taken out, expenses). Use **Add cash** for change from the bank and **Take cash out** for a bank deposit, each with a reason.
+9. **Close your drawer** at the end: tap **Count and close**, count every note and coin and enter the total. If it does not match, add a note saying why. The system records any shortage or overage against your shift.
 
 **You cannot change a bill once it is made.** That is the law for GST invoices. If something is wrong, ask a manager for a credit note.
 
@@ -58,15 +59,17 @@ Open the app at your restaurant's address (for example `https://pos.yourrestaura
 | Cancel an item or order | Cancel, with a reason (`POST /orders/:id/cancel`) | Shows in the cancellations report with your name and the reason |
 | Guest returns an item after billing | **Credit note** for that line (`POST /invoices/:id/credit-notes`), then **Refund** against the payment it came from (`POST /invoices/:id/refunds`) | The refund can never be more than was paid |
 | Approve a cashier's refund | `GET /refunds?branchId=…&status=PENDING`, then approve or reject | — |
-| Cash paid out of the drawer | `POST /cash-sessions/:id/movements` | Use it for supplier cash payments, tips paid out and the like |
-| Shop expense | `POST /expenses`, plus a photo or PDF of the bill (`POST /expenses/:id/receipt`) | Receipts are private. Only people who can see expenses can open them. |
+| Cash paid out of the drawer | **Money → Cash drawer → Take cash out** | Use it for bank deposits, tips paid out and the like |
+| Check the cashiers' drawers | **Money → Cash drawer → All shifts**: every shift, who was short or over, and each shift's entries. **Close** ends a shift someone forgot to close. | — |
+| Shop expense | **Money → Expenses → Add expense**: what it was for, category, amount with GST, how it was paid, and a photo or PDF of the bill. Tick **Paid from the cash drawer** if the cash came from your drawer. | Receipts are private. Only people who can see expenses can open them. Changes need a reason and are kept in **Show changes**. |
+| Staff records | **Team → Employees**: add people, their job, joining date and pay, and tie them to their sign-in so they can clock in | Pay is shown only to people who manage staff |
+| Attendance | **Team → Attendance**: who is in today and the month's totals. **Record** or **Correct** a day (leave, absent, half day, or the right times) with a reason. | — |
 | Today at a glance | Dashboard (`GET /dashboard?range=today`) | Sales, orders, payment mix, best sellers, low stock, recent payments |
 
 ## Staff: attendance
 
-- **Clock in** when you arrive and **Clock out** when you leave (`POST /attendance/clock-in`, `POST /attendance/clock-out`). Night shifts past midnight count for the day you started.
-- Forgot to clock out? Tell your manager. They will correct it, and the change is recorded.
-- See your own hours under **My attendance** (`GET /attendance/me`).
+- Tap **Clock in** in the top bar when you arrive and **Clock out** when you leave. The button appears once your manager has tied your sign-in to your employee record. Night shifts past midnight count for the day you started.
+- Forgot to clock out? Tell your manager. They will correct it under **Team → Attendance**, and the change is recorded with their reason.
 
 ## Storekeeper: stock
 
@@ -80,6 +83,13 @@ Everything is under **Stock** in the top bar.
 - **Delivery without order** is for goods bought on the spot, such as at the market.
 - **Recipes:** pick a dish and list what one portion uses, with a waste % if some is lost in prep. Every sale then takes those amounts out of stock, and you see what a portion costs.
 - **Suppliers:** add who you buy from, with phone, GSTIN and how many days you have to pay.
+
+## Accountant: expenses and supplier bills
+
+- **Money → Expenses:** pick the month to see what was spent, by category, with GST. Open an expense to correct it (say why) or open its receipt.
+- **Money → Supplier bills:** **Add bill** with the supplier, bill number, date, amount before GST and the GST. Tick the deliveries the bill covers. The due date comes from the supplier's payment terms unless you set one.
+- Open a bill to **Record a payment** (bank transfer, UPI, cash, card) with the UTR or cheque number. Part payments are fine; the bill shows what is still owed. **To pay** and **Overdue** list what needs paying.
+- Pick a supplier and tap **Statement** for every bill and payment with the running balance.
 
 ## When something goes wrong
 

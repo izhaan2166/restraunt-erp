@@ -139,14 +139,16 @@ export function buildUrl(path: string, query?: RequestOptions['query']) {
 export async function request<T>(path: string, opts: RequestOptions = {}): Promise<ApiResult<T>> {
   const send = async (token: string | null) => {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (opts.body !== undefined) headers['Content-Type'] = 'application/json';
+    // A FormData body (file upload) sets its own multipart Content-Type with the boundary.
+    const form = typeof FormData !== 'undefined' && opts.body instanceof FormData;
+    if (opts.body !== undefined && !form) headers['Content-Type'] = 'application/json';
     if (token) headers.Authorization = `Bearer ${token}`;
     if (opts.idempotencyKey) headers['Idempotency-Key'] = opts.idempotencyKey;
     try {
       return await fetchImpl(buildUrl(path, opts.query), {
         method: opts.method ?? 'GET',
         headers,
-        body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+        body: opts.body === undefined ? undefined : form ? (opts.body as FormData) : JSON.stringify(opts.body),
         credentials: 'same-origin',
         signal: opts.signal,
       });
@@ -182,6 +184,12 @@ export const api = {
   post: <T>(path: string, body?: unknown, idempotencyKey?: string) => request<T>(path, { method: 'POST', body: body ?? {}, idempotencyKey }).then((r) => r.data),
   patch: <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH', body }).then((r) => r.data),
   put: <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT', body }).then((r) => r.data),
+  /** Uploads one file as multipart form data under the given field name. */
+  upload: <T>(path: string, field: string, file: Blob) => {
+    const form = new FormData();
+    form.append(field, file);
+    return request<T>(path, { method: 'POST', body: form }).then((r) => r.data);
+  },
   del: <T>(path: string, body?: unknown) => request<T>(path, { method: 'DELETE', body }).then((r) => r.data),
 };
 

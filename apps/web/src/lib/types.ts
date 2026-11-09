@@ -380,3 +380,121 @@ export interface GoodsReceipt {
   items: { id: string; quantity: string; unitPrice: string; ingredient: { id: string; name: string }; unit: { code: string } }[];
   totalValue: string;
 }
+
+export interface CashShift {
+  id: string;
+  branchId: string;
+  userId: string;
+  terminal: string | null;
+  status: 'OPEN' | 'CLOSED';
+  openingBalance: string;
+  openedAt: string;
+  expectedCash: string;
+  actualCash: string | null;
+  discrepancy: string | null;
+  closingNotes: string | null;
+  closedAt: string | null;
+  user: { id: string; fullName: string; email: string };
+}
+
+export interface ShiftReport {
+  id: string;
+  branchId: string;
+  cashier: { id: string; fullName: string };
+  status: 'OPEN' | 'CLOSED';
+  openedAt: string;
+  closedAt: string | null;
+  closedBy: { id: string; fullName: string } | null;
+  cash: { openingFloat: string; cashSales: string; cashRefunds: string; cashIn: string; cashOut: string; expenses: string; expected: string; actual: string | null; discrepancy: string | null; notes: string | null };
+  paymentsByMethod: { method: string; count: number; amount: string }[];
+  refundsByMethod: { method: string; count: number; amount: string }[];
+  totalCollected: string;
+  movements: { id: string; type: string; amount: string; note: string | null; createdAt: string }[];
+}
+
+
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface Expense {
+  id: string;
+  branchId: string;
+  categoryId: string;
+  amount: string;
+  taxAmount: string;
+  description: string;
+  expenseDate: string;
+  paymentMethod: PaymentMethod;
+  paidTo: string | null;
+  employeeId: string | null;
+  receiptUrl: string | null;
+  cashSessionId: string | null;
+  createdById: string;
+  deletedAt: string | null;
+  deleteReason: string | null;
+  category: { id: string; name: string };
+  employee: { id: string; fullName: string } | null;
+}
+
+export interface ExpenseSummary {
+  from: string;
+  to: string;
+  count: number;
+  total: string;
+  taxTotal: string;
+  byCategory: { categoryId: string; name: string; count: number; amount: string }[];
+  byPaymentMethod: { method: string; count: number; amount: string }[];
+}
+
+export interface SupplierBill {
+  id: string;
+  supplierId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  dueDate: string | null;
+  subtotal: string;
+  taxTotal: string;
+  total: string;
+  paidAmount: string;
+  outstanding: string;
+  isOverdue: boolean;
+  status: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+  supplier: { id: string; name: string };
+  payments?: { id: string; amount: string; method: PaymentMethod; reference: string | null; paidAt?: string; createdAt: string }[];
+  goodsReceipts?: { id: string; grnNumber: string; receivedAt: string }[];
+}
+
+export interface Employee {
+  id: string;
+  userId: string | null;
+  primaryBranchId: string | null;
+  employeeCode: string;
+  fullName: string;
+  phone: string | null;
+  email: string | null;
+  designation: string | null;
+  joiningDate: string | null;
+  /** Only sent to people allowed to see pay. */
+  monthlySalary?: string | null;
+  isActive: boolean;
+  primaryBranch?: { id: string; name: string } | null;
+  user?: { id: string; email: string; isActive: boolean; userRoles: { branchId: string | null; role: { key: string; name: string } }[] } | null;
+}
+
+export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'HALF_DAY' | 'LEAVE';
+
+export interface AttendanceRow {
+  id: string;
+  branchId: string;
+  employeeId: string;
+  workDate: string;
+  status: AttendanceStatus;
+  clockInAt: string | null;
+  clockOutAt: string | null;
+  notes: string | null;
+  hoursWorked: string;
+  employee?: { id: string; fullName: string; employeeCode: string };
+}

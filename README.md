@@ -17,7 +17,8 @@ HTTPS, backups and restore, admin and user guides).** Frontend part 1 is done: t
 app with sign-in, POS (dine-in, takeaway, delivery, bill and payment), kitchen display, live table
 floor and orders list. Frontend part 2 is done: owner and manager screens for the menu, staff and
 roles, table layout and branches. Frontend part 3 is done: stock, recipes, suppliers and purchase
-orders. Next: expenses/cash/staff and report screens.
+orders. Frontend part 4 is done: cash drawer, expenses with receipts, supplier bills and payments,
+employees, attendance and clock in/out. Next: dashboard and report screens.
 
 | | |
 |---|---|

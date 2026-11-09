@@ -4,6 +4,7 @@ import { LogOut, Store } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ReactNode, useEffect } from 'react';
+import { ClockButton } from '@/components/clock-button';
 import { Spinner } from '@/components/ui';
 import { cn } from '@/lib/cn';
 import { visibleNav } from '@/lib/nav';
@@ -69,6 +70,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         ) : (
           <span className="hidden text-sm text-stone-600 md:inline">{branch.name}</span>
         )}
+        {can('attendance.self', branch.id) && <ClockButton />}
         <div className="hidden text-right text-xs leading-tight text-stone-500 lg:block">
           <div className="font-medium text-stone-800">{me.user.fullName}</div>
           <div>{me.organization.name}</div>
