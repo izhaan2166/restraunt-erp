@@ -1,4 +1,4 @@
-import { ChefHat, ClipboardList, LayoutGrid, LucideIcon, Settings, ShoppingCart } from 'lucide-react';
+import { ChefHat, ClipboardList, LayoutGrid, LucideIcon, Package, Settings, ShoppingCart } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -14,6 +14,7 @@ export const NAV: NavItem[] = [
   { href: '/tables', label: 'Tables', icon: LayoutGrid, anyOf: ['tables.read'] },
   { href: '/orders', label: 'Orders', icon: ClipboardList, anyOf: ['orders.read'] },
   { href: '/kitchen', label: 'Kitchen', icon: ChefHat, anyOf: ['kot.read'] },
+  { href: '/stock', label: 'Stock', icon: Package, anyOf: ['inventory.read', 'purchases.read', 'suppliers.read'] },
   { href: '/manage', label: 'Manage', icon: Settings, anyOf: ['menu.manage', 'menu.availability.update', 'users.read', 'branches.update', 'settings.read', 'tables.manage'] },
 ];
 
@@ -23,6 +24,14 @@ export const MANAGE_NAV: NavItem[] = [
   { href: '/manage/staff', label: 'Staff', icon: ClipboardList, anyOf: ['users.read'] },
   { href: '/manage/tables', label: 'Table layout', icon: LayoutGrid, anyOf: ['tables.manage'] },
   { href: '/manage/branches', label: 'Branches', icon: ClipboardList, anyOf: ['branches.update', 'settings.read', 'branches.create'] },
+];
+
+/** Sections of the Stock area. */
+export const STOCK_NAV: NavItem[] = [
+  { href: '/stock/levels', label: 'Stock', icon: Package, anyOf: ['inventory.read'] },
+  { href: '/stock/recipes', label: 'Recipes', icon: ClipboardList, anyOf: ['inventory.read'] },
+  { href: '/stock/purchases', label: 'Purchase orders', icon: ClipboardList, anyOf: ['purchases.read'] },
+  { href: '/stock/suppliers', label: 'Suppliers', icon: ClipboardList, anyOf: ['suppliers.read'] },
 ];
 
 export function visibleNav(can: (p: string) => boolean) {

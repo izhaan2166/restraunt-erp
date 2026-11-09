@@ -2,7 +2,7 @@
 
 Status: ✅ done and tested · 🟡 designed (schema/contract in place), behaviour in a later phase · ⏳ not started · ❌ failing
 
-_Last updated: frontend part 2 (owner and manager screens)._
+_Last updated: frontend part 3 (stock and purchasing screens)._
 
 ## Phase 1 – Architecture, schema, authentication, RBAC
 
@@ -141,7 +141,7 @@ _Last updated: frontend part 2 (owner and manager screens)._
 | Isolation per organization and branch | ✅ | inventory & purchasing e2e |
 | Stock transfers between branches | 🟡 | Schema ready (TRANSFER_IN/OUT); API later |
 | Inventory and purchase reports | ✅ | Phase 7, `test/reports.e2e-spec.ts` |
-| Inventory screens (frontend) | 🟡 | Next.js frontend |
+| Inventory screens (frontend) | ✅ | Frontend part 3 below; `apps/web/e2e/stock.spec.ts` |
 
 ## Phase 6 – Expenses, employees, attendance and cash shifts
 
@@ -217,7 +217,7 @@ _Last updated: frontend part 2 (owner and manager screens)._
 
 | Phase | Area | Status |
 |---|---|---|
-| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | 🟡 parts 1–2 done (below) |
+| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | 🟡 parts 1–3 done (below) |
 
 ## Frontend part 1 – Sign-in, POS, kitchen display, tables
 
@@ -256,4 +256,21 @@ _Last updated: frontend part 2 (owner and manager screens)._
 | Branches: create (owner), details and GSTIN checks, billing settings, kitchen stations | ✅ | manage e2e (new branch, settings saved, station added) |
 | New branches get a valid, unique bill number prefix (codes with "-" no longer block saving settings) | ✅ | `test/rbac.e2e-spec.ts` (new branches) |
 | Bill dialog never re-sends the bill request while the first is in flight | ✅ | `src/components/bill-dialog.tsx`; takeaway e2e |
+
+## Frontend part 3 – Stock and purchasing screens
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Stock section for storekeepers, managers and owners; storekeepers land on it | ✅ | `src/lib/nav.ts`; `e2e/stock.spec.ts` |
+| Ingredients with counting unit (g/ml/pc), category; stop using an ingredient | ✅ | stock e2e |
+| Stock per branch with low and below-zero marks, "running low" filter | ✅ | stock e2e (low after setting minimum) |
+| Stock count (partial or full) in any matching unit, with cost for the first count | ✅ | stock e2e (10 kg at ₹80/kg) |
+| Add or remove stock with a reason, wastage, minimum levels; every change retry-safe (idempotency keys) | ✅ | stock e2e (wastage 500 g) |
+| Stock history with every movement and balance after it | ✅ | stock e2e |
+| Recipes per dish (and per size), waste %, cost per portion from the server | ✅ | stock e2e (₹8.80 a portion) |
+| Suppliers: add, edit, payment terms, GSTIN, inactive | ✅ | stock e2e |
+| Purchase orders: create (with "add items running low"), owner approval, cancel with reason, receive part or all, price changes on receipt | ✅ | stock e2e (order, approve, receive, stock 29.5 kg) |
+| Deliveries without a purchase order | ✅ | `src/app/(app)/stock/purchases/page.tsx` |
+| All money (order totals, GST, stock value, recipe cost) from the server | ✅ | stock e2e checks ₹1,680.00 |
+| Branch switcher has an accessible name | ✅ | `src/app/(app)/layout.tsx` |
 
