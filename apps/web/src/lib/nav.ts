@@ -1,4 +1,4 @@
-import { ChefHat, ClipboardList, IndianRupee, LayoutGrid, LucideIcon, Package, Settings, ShoppingCart, Users } from 'lucide-react';
+import { BarChart3, ChefHat, ClipboardList, Gauge, IndianRupee, LayoutGrid, LucideIcon, Package, Settings, ShoppingCart, Users } from 'lucide-react';
 
 export interface NavItem {
   href: string;
@@ -10,6 +10,7 @@ export interface NavItem {
 
 /** Screens in the order staff use them. Each appears only for roles that can use it. */
 export const NAV: NavItem[] = [
+  { href: '/dashboard', label: 'Dashboard', icon: Gauge, anyOf: ['dashboard.read'] },
   { href: '/pos', label: 'POS', icon: ShoppingCart, anyOf: ['orders.create'] },
   { href: '/tables', label: 'Tables', icon: LayoutGrid, anyOf: ['tables.read'] },
   { href: '/orders', label: 'Orders', icon: ClipboardList, anyOf: ['orders.read'] },
@@ -17,6 +18,7 @@ export const NAV: NavItem[] = [
   { href: '/stock', label: 'Stock', icon: Package, anyOf: ['inventory.read', 'purchases.read', 'suppliers.read'] },
   { href: '/money', label: 'Money', icon: IndianRupee, anyOf: ['shifts.open', 'shifts.read', 'expenses.read', 'supplier_payments.create'] },
   { href: '/team', label: 'Team', icon: Users, anyOf: ['employees.read'] },
+  { href: '/reports', label: 'Reports', icon: BarChart3, anyOf: ['reports.sales', 'reports.gst', 'reports.financial', 'reports.inventory', 'reports.employee'] },
   { href: '/manage', label: 'Manage', icon: Settings, anyOf: ['menu.manage', 'menu.availability.update', 'users.read', 'branches.update', 'settings.read', 'tables.manage'] },
 ];
 

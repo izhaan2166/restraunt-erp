@@ -95,3 +95,24 @@ export function shortDate(date: string): string {
   const [y, m, d] = date.slice(0, 10).split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 }
+
+/** Shifts a YYYY-MM-DD date by whole days. */
+export function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+export type DatePreset = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month';
+
+/** Report periods in India dates. Weeks start on Monday; "this week" and "this month" end today. */
+export function presetRange(p: DatePreset, today: string = indiaDate()): { from: string; to: string } {
+  if (p === 'today') return { from: today, to: today };
+  if (p === 'yesterday') return { from: addDays(today, -1), to: addDays(today, -1) };
+  if (p === 'this_week') {
+    const dow = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7;
+    return { from: addDays(today, -dow), to: today };
+  }
+  if (p === 'this_month') return { from: monthOf(today).from, to: today };
+  return monthOf(addDays(monthOf(today).from, -1));
+}

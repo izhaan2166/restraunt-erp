@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { elapsed, indiaDate, monthOf, qty, rupees, shortDate, skuFrom, stockQty, titleCase } from './format';
+import { elapsed, indiaDate, monthOf, presetRange, qty, rupees, shortDate, skuFrom, stockQty, titleCase } from './format';
 
 describe('rupees', () => {
   it('groups digits the Indian way and always shows paise', () => {
@@ -68,5 +68,18 @@ describe('business dates', () => {
   });
   it('shows a stored date without shifting the day', () => {
     expect(shortDate('2026-11-09T00:00:00.000Z')).toBe('9 Nov 2026');
+  });
+});
+
+describe('presetRange', () => {
+  it('gives report periods in India dates', () => {
+    // 9 Nov 2026 is a Monday.
+    expect(presetRange('today', '2026-11-09')).toEqual({ from: '2026-11-09', to: '2026-11-09' });
+    expect(presetRange('yesterday', '2026-11-09')).toEqual({ from: '2026-11-08', to: '2026-11-08' });
+    expect(presetRange('this_week', '2026-11-09')).toEqual({ from: '2026-11-09', to: '2026-11-09' });
+    expect(presetRange('this_week', '2026-11-15')).toEqual({ from: '2026-11-09', to: '2026-11-15' });
+    expect(presetRange('this_month', '2026-11-09')).toEqual({ from: '2026-11-01', to: '2026-11-09' });
+    expect(presetRange('last_month', '2026-03-10')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
+    expect(presetRange('last_month', '2026-01-05')).toEqual({ from: '2025-12-01', to: '2025-12-31' });
   });
 });

@@ -64,7 +64,8 @@ Open the app at your restaurant's address (for example `https://pos.yourrestaura
 | Shop expense | **Money → Expenses → Add expense**: what it was for, category, amount with GST, how it was paid, and a photo or PDF of the bill. Tick **Paid from the cash drawer** if the cash came from your drawer. | Receipts are private. Only people who can see expenses can open them. Changes need a reason and are kept in **Show changes**. |
 | Staff records | **Team → Employees**: add people, their job, joining date and pay, and tie them to their sign-in so they can clock in | Pay is shown only to people who manage staff |
 | Attendance | **Team → Attendance**: who is in today and the month's totals. **Record** or **Correct** a day (leave, absent, half day, or the right times) with a reason. | — |
-| Today at a glance | Dashboard (`GET /dashboard?range=today`) | Sales, orders, payment mix, best sellers, low stock, recent payments |
+| Today at a glance | **Dashboard** (where you land after signing in): sales, orders, money received, expenses and estimated profit, how customers paid, best sellers, what is running low and the latest payments. Pick Today, Yesterday, This week or This month; tick **All my branches** to see them together. | Refreshes every minute |
+| Reports | **Reports**: pick a report on the left and the dates. **Excel (CSV)** and **PDF** download what you see. | You only see the reports your role allows |
 
 ## Staff: attendance
 
@@ -90,6 +91,15 @@ Everything is under **Stock** in the top bar.
 - **Money → Supplier bills:** **Add bill** with the supplier, bill number, date, amount before GST and the GST. Tick the deliveries the bill covers. The due date comes from the supplier's payment terms unless you set one.
 - Open a bill to **Record a payment** (bank transfer, UPI, cash, card) with the UTR or cheque number. Part payments are fine; the bill shows what is still owed. **To pay** and **Overdue** list what needs paying.
 - Pick a supplier and tap **Statement** for every bill and payment with the running balance.
+
+## Owner and accountant: reports
+
+- **Sales:** one row per day, week, month or year. **Dishes sold** and **Categories** show what sells.
+- **GST:** by tax rate, by HSN/SAC and the B2B bills, ready for your tax adviser. Download it as Excel (CSV) or PDF.
+- **Profit and loss:** net sales less recipe cost, wastage and expenses. It is an estimate: dishes without a recipe count as costing nothing.
+- **Payments, refunds, expenses, discounts, cancellations:** who did what, when, and why.
+- **Stock and food cost, wastage, purchases:** what came in, what was used and what was thrown away.
+- **Staff performance** and **Branches compared** for owners with more than one branch.
 
 ## When something goes wrong
 

@@ -190,7 +190,7 @@ _Last updated: frontend part 3 (stock and purchasing screens)._
 | Reports reconcile: products add up to net sales, ledger opening + movements = closing | ✅ | reports e2e |
 | CSV and PDF exports for every report; invoice PDF | ✅ | reports e2e |
 | Branch and organization isolation; financial figures hidden without permission | ✅ | reports e2e |
-| Report screens (frontend) | 🟡 | Next.js frontend |
+| Report screens (frontend) | ✅ | Frontend part 5 below; `apps/web/e2e/reports.spec.ts` |
 | Heavy reports in background jobs / cached | ✅ | Not needed: month reports p95 under 160 ms at 25 concurrent clients ([performance.md](performance.md)) |
 
 ## Phase 8 – Hardening, load tests, monitoring, deployment, docs
@@ -217,7 +217,7 @@ _Last updated: frontend part 3 (stock and purchasing screens)._
 
 | Phase | Area | Status |
 |---|---|---|
-| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | 🟡 parts 1–3 done (below) |
+| 2+ | Next.js frontend (POS, kitchen display, admin, reports screens) | ✅ parts 1–5 done (below) |
 
 ## Frontend part 1 – Sign-in, POS, kitchen display, tables
 
@@ -291,3 +291,15 @@ _Last updated: frontend part 3 (stock and purchasing screens)._
 | Clock in and out from the top bar, for staff with an employee record | ✅ | team e2e (waiter clocks in and out) |
 | Attendance by day with the month's summary; managers record or correct a day (leave, absent, half day, times) with a reason | ✅ | team e2e (leave recorded) |
 | Receipt uploads send multipart form data | ✅ | `src/lib/api.test.ts` |
+
+## Frontend part 5 – Dashboard and reports
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Dashboard for owners, managers and accountants (their landing screen): sales with GST, net sales, orders, money received, expenses and estimated profit when allowed | ✅ | `e2e/reports.spec.ts` (sale total matches the bill) |
+| Dashboard: today, yesterday, this week, this month; one branch or all; payment mix, best sellers, running low, latest payments, branches compared; refreshes every minute | ✅ | reports e2e (best sellers, payment methods) |
+| Reports: sales (by day, week, month or year), dishes, categories, discounts, cancellations, branches, GST, payments, refunds, expenses, profit and loss, stock and food cost, wastage, purchases, staff performance | ✅ | reports e2e (sales, dishes, GST); each report shown only to roles that may see it |
+| Report periods in India dates (presets and chosen dates); one branch or all | ✅ | `src/lib/format.test.ts` (presetRange) |
+| Downloads as Excel (CSV) and PDF, named by report and dates | ✅ | reports e2e (CSV and PDF downloads) |
+| Report screens show the server's labels and column types (`format=table`); no money is worked out in the browser | ✅ | `apps/api/test/reports.e2e-spec.ts` (table format) |
+| Waiters and kitchen staff see neither the dashboard nor reports | ✅ | reports e2e |

@@ -193,14 +193,32 @@ export const api = {
   del: <T>(path: string, body?: unknown) => request<T>(path, { method: 'DELETE', body }).then((r) => r.data),
 };
 
-/** Downloads a protected file (invoice PDF, export) with the access token and opens it. */
-export async function openFile(path: string, query?: RequestOptions['query']) {
+async function fetchFile(path: string, query?: RequestOptions['query']) {
   const go = (token: string | null) => fetchImpl(buildUrl(path, query), { headers: token ? { Authorization: `Bearer ${token}` } : {}, credentials: 'same-origin' });
   let res = await go(accessToken);
   if (res.status === 401) res = await go(await refreshAccessToken());
   if (!res.ok) throw toError(res.status, await parse(res));
-  const url = URL.createObjectURL(await res.blob());
+  return res;
+}
+
+/** Downloads a protected file (invoice PDF, receipt) with the access token and opens it. */
+export async function openFile(path: string, query?: RequestOptions['query']) {
+  const url = URL.createObjectURL(await (await fetchFile(path, query)).blob());
   window.open(url, '_blank', 'noopener');
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Saves a protected file (report export) under the name the server gives it. */
+export async function saveFile(path: string, query: RequestOptions['query'] | undefined, fallbackName: string) {
+  const res = await fetchFile(path, query);
+  const name = /filename="([^"]+)"/.exec(res.headers.get('Content-Disposition') ?? '')?.[1] ?? fallbackName;
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
