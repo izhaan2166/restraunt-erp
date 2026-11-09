@@ -12,6 +12,7 @@ import { ReportsService } from './reports.service';
 /** JSON by default; `format=csv|pdf` downloads the same report as a file. */
 async function render(r: Report, format: ReportFormat = 'json') {
   if (format === 'json') return toJson(r);
+  if (format === 'table') return r;
   const name = `${r.key}_${r.from}_${r.to}.${format}`;
   if (format === 'csv') return new StreamableFile(Buffer.from(toCsv(r), 'utf8'), { type: 'text/csv; charset=utf-8', disposition: `attachment; filename="${name}"` });
   return new StreamableFile(await toPdf(r), { type: 'application/pdf', disposition: `attachment; filename="${name}"` });

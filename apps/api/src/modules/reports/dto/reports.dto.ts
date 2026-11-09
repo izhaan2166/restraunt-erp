@@ -4,7 +4,8 @@ import { DATE_ONLY } from '../../../common/dates';
 
 const date = (f: string) => ({ message: `${f} must be a date (YYYY-MM-DD)` });
 
-export const FORMATS = ['json', 'csv', 'pdf'] as const;
+/** json: plain figures; table: the report as the screens show it (labels and column types); csv and pdf: files. */
+export const FORMATS = ['json', 'table', 'csv', 'pdf'] as const;
 export type ReportFormat = (typeof FORMATS)[number];
 export const GROUPINGS = ['day', 'week', 'month', 'year'] as const;
 export type Grouping = (typeof GROUPINGS)[number];

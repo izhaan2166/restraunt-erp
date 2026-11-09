@@ -358,7 +358,7 @@ Definitions of every figure, in plain words: [reports.md](reports.md).
 
 All reports take `from` and `to` (India business dates, inclusive, at most five years:
 `RANGE_TOO_LONG`, `INVALID_RANGE`), an optional `branchId` (omitted = every branch where you hold the
-report's permission; a branch where you have no role → 404) and `format=json|csv|pdf` (default json).
+report's permission; a branch where you have no role → 404) and `format=json|table|csv|pdf` (default json; `table` returns the report as screens show it: summary items and tables with labels and column types).
 JSON answers `{ report, title, from, to, branches, summary: {…}, <table>: [rows…], notes? }`; money is
 a string with 2 decimals. CSV (UTF-8 with BOM) and PDF are downloads named `<report>_<from>_<to>.<ext>`.
 Lists of individual records stop at 5000 rows (`truncated: [table…]`).

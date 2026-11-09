@@ -261,6 +261,10 @@ describe('Dashboard and reports (e2e)', () => {
     expect(csv.text).toContain('Net sales (excl. GST),560.00');
     expect(csv.text).toContain(`${today},3,700.00,50.00`);
 
+    const table = (await get('/reports/sales', { ...q, format: 'table' }, tok.owner).expect(200)).body.data;
+    expect(table.summary).toContainEqual(expect.objectContaining({ key: 'netSales', label: 'Net sales (excl. GST)', value: '560.00', type: 'money' }));
+    expect(table.tables[0].columns[0]).toEqual(expect.objectContaining({ key: 'period' }));
+
     for (const name of ['sales', 'products', 'gst', 'profit-loss', 'employees', 'inventory', 'cancellations']) {
       const pdf = await get(`/reports/${name}`, { ...q, format: 'pdf' }, tok.owner).buffer(true).parse(binary).expect(200);
       expect(pdf.headers['content-type']).toBe('application/pdf');
